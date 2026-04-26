@@ -127,34 +127,42 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
 
   return (
     <div style={s.pane}>
+      {/* Header */}
       <div style={s.header}>
-        {otherUser && <Avatar username={otherUser.username} size={30} />}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <span style={s.headerName}>{otherUser?.username || '…'}</span>
-          {otherUser?.bio && <span style={s.headerBio}>{otherUser.bio}</span>}
+        {otherUser && <Avatar username={otherUser.username} size={28} />}
+        <div>
+          <div style={s.headerName}>{otherUser?.username || '…'}</div>
+          {otherUser?.bio && <div style={s.headerBio}>{otherUser.bio}</div>}
         </div>
       </div>
 
-      <div ref={listRef} style={s.messages}>
-        {hasMore && (
-          <button onClick={loadMore} disabled={loadingMore} style={s.loadMore}>
-            {loadingMore ? <span className="spinner" style={{ width: 12, height: 12 }} /> : '↑ Earlier messages'}
-          </button>
-        )}
-        {loading ? (
-          <div style={s.center}><span className="spinner" style={{ width: 18, height: 18 }} /></div>
-        ) : messages.length === 0 ? (
-          <div style={s.empty}>
-            {otherUser && <Avatar username={otherUser.username} size={52} />}
-            <p style={s.emptyName}>{otherUser?.username}</p>
-            <p style={s.emptyHint}>Beginning of your conversation</p>
-          </div>
-        ) : (
-          <MessageList messages={messages} currentUserId={currentUser.id} />
-        )}
-        <div ref={bottomRef} />
+      {/* Messages */}
+      <div ref={listRef} style={s.scroller}>
+        <div style={s.messageList}>
+          {hasMore && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+              <button onClick={loadMore} disabled={loadingMore} style={s.loadMore}>
+                {loadingMore ? <span className="spinner" style={{ width: 11, height: 11 }} /> : '↑ Earlier messages'}
+              </button>
+            </div>
+          )}
+
+          {loading ? (
+            <div style={s.center}><span className="spinner" style={{ width: 18, height: 18 }} /></div>
+          ) : messages.length === 0 ? (
+            <div style={s.empty}>
+              {otherUser && <Avatar username={otherUser.username} size={56} />}
+              <p style={s.emptyName}>{otherUser?.username}</p>
+              <p style={s.emptyHint}>Beginning of your conversation</p>
+            </div>
+          ) : (
+            <MessageList messages={messages} currentUserId={currentUser.id} />
+          )}
+          <div ref={bottomRef} />
+        </div>
       </div>
 
+      {/* Input */}
       <div style={s.inputRow}>
         <textarea
           ref={inputRef}
@@ -168,7 +176,7 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
         <button
           onClick={sendMessage}
           disabled={!input.trim() || sending}
-          style={{ ...s.sendBtn, opacity: !input.trim() || sending ? 0.3 : 1 }}
+          style={{ ...s.sendBtn, opacity: !input.trim() || sending ? 0.25 : 1 }}
         >
           {sending
             ? <span className="spinner" style={{ width: 13, height: 13, borderTopColor: '#000' }} />
@@ -187,6 +195,7 @@ function MessageList({ messages, currentUserId }: { messages: Message[]; current
     if (last && last.date === d) last.messages.push(msg);
     else byDate.push({ date: d, messages: [msg] });
   });
+
   return (
     <>
       {byDate.map(group => (
@@ -206,10 +215,12 @@ function MessageList({ messages, currentUserId }: { messages: Message[]; current
 function renderClusters(messages: Message[], currentUserId: string) {
   const nodes: React.ReactNode[] = [];
   let i = 0;
+
   while (i < messages.length) {
     const msg = messages[i];
     const isMe = msg.senderId === currentUserId;
     const cluster: Message[] = [msg];
+
     while (
       i + 1 < messages.length &&
       messages[i + 1].senderId === msg.senderId &&
@@ -217,33 +228,69 @@ function renderClusters(messages: Message[], currentUserId: string) {
     ) { i++; cluster.push(messages[i]); }
 
     nodes.push(
-      <div key={cluster[0].id} style={{ ...s.cluster, alignSelf: isMe ? 'flex-end' : 'flex-start', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
-        <div style={{ ...s.meta, flexDirection: isMe ? 'row-reverse' : 'row' }}>
-          {!isMe && <Avatar username={msg.senderUsername} size={16} />}
-          <span style={s.metaName}>{isMe ? 'You' : msg.senderUsername}</span>
-          <span style={s.metaTime}>{formatTime(cluster[cluster.length - 1].createdAt)}</span>
+      // Outer row: full width, flex row, justifies left or right
+      <div key={cluster[0].id} style={{
+        display: 'flex',
+        flexDirection: 'row',
+        justifyContent: isMe ? 'flex-end' : 'flex-start',
+        width: '100%',
+        marginBottom: 14,
+      }}>
+        {/* Inner column: contains meta + bubbles, max 60% wide */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: isMe ? 'flex-end' : 'flex-start',
+          maxWidth: '60%',
+          gap: 2,
+        }}>
+          {/* Meta row */}
+          <div style={{
+            display: 'flex',
+            flexDirection: isMe ? 'row-reverse' : 'row',
+            alignItems: 'center',
+            gap: 6,
+            marginBottom: 3,
+          }}>
+            {!isMe && <Avatar username={msg.senderUsername} size={16} />}
+            <span style={s.metaName}>{isMe ? 'You' : msg.senderUsername}</span>
+            <span style={s.metaTime}>{formatTime(cluster[cluster.length - 1].createdAt)}</span>
+          </div>
+
+          {/* Bubble(s) */}
+          {cluster.map((m, idx) => {
+            const first = idx === 0;
+            const last = idx === cluster.length - 1;
+            const r = 16;
+            const t = 5;
+            return (
+              <div key={m.id} style={{
+                padding: '9px 14px',
+                fontSize: 14,
+                lineHeight: 1.6,
+                wordBreak: 'break-word',
+                whiteSpace: 'pre-wrap',
+                letterSpacing: '0.01em',
+                animation: 'fadeIn 0.12s ease',
+                background: isMe ? '#efefef' : '#141414',
+                color: isMe ? '#0d0d0d' : '#d8d8d8',
+                marginBottom: last ? 0 : 2,
+                borderRadius: isMe
+                  ? `${first ? r : t}px ${t}px ${t}px ${last ? r : t}px`
+                  : `${t}px ${first ? r : t}px ${last ? r : t}px ${t}px`,
+                fontFamily: "'Inter', system-ui, sans-serif",
+                fontWeight: 400,
+              }}>
+                {m.content}
+              </div>
+            );
+          })}
         </div>
-        {cluster.map((m, idx) => {
-          const first = idx === 0;
-          const last = idx === cluster.length - 1;
-          return (
-            <div key={m.id} style={{
-              ...s.bubble,
-              background: isMe ? '#f0f0f0' : '#161616',
-              color: isMe ? '#0a0a0a' : '#e0e0e0',
-              marginBottom: last ? 0 : 2,
-              borderRadius: isMe
-                ? `${first ? 16 : 5}px 5px 5px ${last ? 16 : 5}px`
-                : `5px ${first ? 16 : 5}px ${last ? 16 : 5}px 5px`,
-            }}>
-              {m.content}
-            </div>
-          );
-        })}
       </div>
     );
     i++;
   }
+
   return nodes;
 }
 
@@ -268,25 +315,161 @@ const IconSend = () => (
 );
 
 const s: Record<string, React.CSSProperties> = {
-  pane: { flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: '#080808' },
-  header: { padding: '14px 28px', borderBottom: '1px solid #191919', display: 'flex', alignItems: 'center', gap: 12, background: '#0b0b0b', flexShrink: 0 },
-  headerName: { fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 14, color: '#e8e8e8', letterSpacing: '0.02em' },
-  headerBio: { fontSize: 11, color: '#4a4a4a', fontFamily: 'var(--font-mono)' },
-  messages: { flex: 1, overflowY: 'auto', padding: '28px 36px', display: 'flex', flexDirection: 'column', gap: 14 },
-  center: { display: 'flex', justifyContent: 'center', alignItems: 'center', flex: 1, padding: 60 },
-  empty: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, flex: 1, paddingTop: 80 },
-  emptyName: { fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 15, color: '#888', marginTop: 6 },
-  emptyHint: { fontSize: 12, color: '#3a3a3a', fontFamily: 'var(--font-mono)' },
-  loadMore: { alignSelf: 'center', padding: '5px 16px', fontSize: 11, color: '#444', background: 'transparent', border: '1px solid #222', borderRadius: 20, cursor: 'pointer', fontFamily: 'var(--font-mono)', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 },
-  dateSep: { display: 'flex', alignItems: 'center', gap: 14, margin: '2px 0 6px' },
-  dateLine: { flex: 1, height: 1, background: '#181818' },
-  dateLabel: { fontSize: 10, color: '#383838', fontFamily: 'var(--font-display)', fontWeight: 500, letterSpacing: '0.06em', flexShrink: 0 },
-  cluster: { display: 'flex', flexDirection: 'column', maxWidth: '60%', gap: 0 },
-  meta: { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 },
-  metaName: { fontSize: 11, color: '#4a4a4a', fontFamily: 'var(--font-display)', fontWeight: 500 },
-  metaTime: { fontSize: 10, color: '#333', fontFamily: 'var(--font-mono)' },
-  bubble: { padding: '9px 14px', fontSize: 13.5, lineHeight: 1.58, wordBreak: 'break-word', whiteSpace: 'pre-wrap', letterSpacing: '0.005em', animation: 'fadeIn 0.12s ease' },
-  inputRow: { padding: '12px 28px 16px', borderTop: '1px solid #141414', display: 'flex', alignItems: 'flex-end', gap: 10, background: '#0b0b0b', flexShrink: 0 },
-  input: { flex: 1, background: '#111', border: '1px solid #222', borderRadius: 12, padding: '10px 16px', color: '#ddd', resize: 'none', outline: 'none', fontSize: 13.5, lineHeight: 1.55, fontFamily: 'var(--font-mono)', transition: 'border-color 0.15s' },
-  sendBtn: { width: 38, height: 38, background: '#e8e8e8', color: '#000', border: 'none', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'opacity 0.15s' },
+  pane: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100vh',
+    overflow: 'hidden',
+    background: '#080808',
+  },
+  header: {
+    padding: '14px 32px',
+    borderBottom: '1px solid #181818',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    background: '#0a0a0a',
+    flexShrink: 0,
+  },
+  headerName: {
+    fontFamily: "'Cormorant Garamond', Georgia, serif",
+    fontWeight: 500,
+    fontSize: 17,
+    color: '#e0e0e0',
+    letterSpacing: '0.03em',
+  },
+  headerBio: {
+    fontSize: 11,
+    color: '#444',
+    fontFamily: "'Inter', system-ui, sans-serif",
+    marginTop: 1,
+  },
+  scroller: {
+    flex: 1,
+    overflowY: 'auto',
+    width: '100%',
+  },
+  messageList: {
+    display: 'flex',
+    flexDirection: 'column',
+    padding: '28px 40px',
+    minHeight: '100%',
+    boxSizing: 'border-box',
+  },
+  center: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flex: 1,
+    padding: 80,
+  },
+  empty: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 12,
+    paddingTop: 80,
+  },
+  emptyName: {
+    fontFamily: "'Cormorant Garamond', Georgia, serif",
+    fontWeight: 400,
+    fontStyle: 'italic',
+    fontSize: 20,
+    color: '#555',
+    marginTop: 6,
+  },
+  emptyHint: {
+    fontSize: 12,
+    color: '#333',
+    fontFamily: "'Inter', system-ui, sans-serif",
+    fontWeight: 300,
+    letterSpacing: '0.04em',
+  },
+  loadMore: {
+    padding: '5px 16px',
+    fontSize: 11,
+    color: '#444',
+    background: 'transparent',
+    border: '1px solid #1f1f1f',
+    borderRadius: 20,
+    cursor: 'pointer',
+    fontFamily: "'Inter', system-ui, sans-serif",
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    letterSpacing: '0.03em',
+  },
+  dateSep: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 14,
+    margin: '8px 0 16px',
+  },
+  dateLine: {
+    flex: 1,
+    height: 1,
+    background: '#161616',
+  },
+  dateLabel: {
+    fontSize: 10,
+    color: '#353535',
+    fontFamily: "'Cormorant Garamond', Georgia, serif",
+    fontWeight: 400,
+    fontStyle: 'italic',
+    letterSpacing: '0.08em',
+    flexShrink: 0,
+  },
+  metaName: {
+    fontSize: 11,
+    color: '#404040',
+    fontFamily: "'Inter', system-ui, sans-serif",
+    fontWeight: 500,
+    letterSpacing: '0.02em',
+  },
+  metaTime: {
+    fontSize: 10,
+    color: '#2e2e2e',
+    fontFamily: "'Inter', system-ui, sans-serif",
+    fontWeight: 300,
+  },
+  inputRow: {
+    padding: '12px 32px 18px',
+    borderTop: '1px solid #141414',
+    display: 'flex',
+    alignItems: 'flex-end',
+    gap: 10,
+    background: '#0a0a0a',
+    flexShrink: 0,
+  },
+  input: {
+    flex: 1,
+    background: '#111',
+    border: '1px solid #1e1e1e',
+    borderRadius: 12,
+    padding: '10px 16px',
+    color: '#d0d0d0',
+    resize: 'none',
+    outline: 'none',
+    fontSize: 14,
+    lineHeight: 1.55,
+    fontFamily: "'Inter', system-ui, sans-serif",
+    fontWeight: 300,
+    transition: 'border-color 0.15s',
+    letterSpacing: '0.01em',
+  },
+  sendBtn: {
+    width: 38,
+    height: 38,
+    background: '#e0e0e0',
+    color: '#000',
+    border: 'none',
+    borderRadius: '50%',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    transition: 'opacity 0.15s',
+  },
 };
