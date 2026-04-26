@@ -1,11 +1,5 @@
 import { MongoClient, Db } from 'mongodb';
 
-const MONGODB_URI = process.env.MONGODB_URI!;
-
-if (!MONGODB_URI) {
-  throw new Error('Please define the MONGODB_URI environment variable');
-}
-
 interface MongoConnection {
   client: MongoClient;
   db: Db;
@@ -17,11 +11,17 @@ let clientPromise: Promise<MongoClient> | null = null;
 export async function connectToDatabase(): Promise<MongoConnection> {
   if (cached) return cached;
 
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    throw new Error('MONGODB_URI environment variable is not set. Add it in Vercel → Project Settings → Environment Variables.');
+  }
+
   if (!clientPromise) {
-    const client = new MongoClient(MONGODB_URI, {
+    const client = new MongoClient(uri, {
       maxPoolSize: 10,
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 10000,
       socketTimeoutMS: 45000,
+      connectTimeoutMS: 10000,
     });
     clientPromise = client.connect();
   }
@@ -29,17 +29,15 @@ export async function connectToDatabase(): Promise<MongoConnection> {
   const client = await clientPromise;
   const db = client.db('palerock');
 
-  // Create indexes for performance and expandability
+  // Create indexes — safe to run repeatedly, errors are non-fatal
   try {
     await db.collection('users').createIndex({ username: 1 }, { unique: true });
     await db.collection('users').createIndex({ email: 1 }, { unique: true });
     await db.collection('messages').createIndex({ channelId: 1, createdAt: -1 });
     await db.collection('friendRequests').createIndex({ fromUserId: 1, toUserId: 1 }, { unique: true });
     await db.collection('channels').createIndex({ members: 1 });
-    await db.collection('sessions').createIndex({ token: 1 }, { unique: true });
-    await db.collection('sessions').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
   } catch (_) {
-    // Indexes may already exist
+    // Indexes already exist — fine
   }
 
   cached = { client, db };

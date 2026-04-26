@@ -78,7 +78,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     });
   } catch (err: unknown) {
-    console.error(err);
-    return res.status(500).json({ error: 'Internal server error' });
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error('[register]', message);
+    return res.status(500).json({ error: message });
   }
 }
