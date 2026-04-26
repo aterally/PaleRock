@@ -44,7 +44,7 @@ export default function Sidebar({
       <nav style={styles.nav}>
         <NavItem
           label="MESSAGES"
-          active={activeView === 'chat' || (activeView === 'chat' && !!activeChannelId)}
+          active={activeView === 'chat'}
           onClick={() => channels.length > 0 ? onChannelSelect(channels[0].id) : onViewChange('chat')}
           icon={<IconMessages />}
         />
