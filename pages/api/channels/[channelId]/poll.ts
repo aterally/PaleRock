@@ -44,7 +44,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ messages: [] });
   }
 
-  const senderIds = [...new Set(messages.map(m => m.senderId.toString()))];
+  const senderIds = Array.from(new Set(messages.map(m => m.senderId.toString())));
   const senders = await db.collection('users').find(
     { _id: { $in: senderIds.map(id => new ObjectId(id)) } },
     { projection: { password: 0 } }
