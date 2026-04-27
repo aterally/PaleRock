@@ -20,8 +20,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const meId = new ObjectId(payload.userId);
   const serverId = new ObjectId(req.query.serverId as string);
 
-  const server = await db.collection('servers').findOne({ _id: serverId });
-  if (!server) return res.status(404).json({ error: 'Server not found' });
+  const serverDoc = await db.collection('servers').findOne({ _id: serverId });
+  if (!serverDoc) return res.status(404).json({ error: 'Server not found' });
+  const server = serverDoc;
 
   const isMember = server.members.some((m: { userId: ObjectId }) => m.userId.equals(meId));
   if (!isMember) return res.status(403).json({ error: 'Not a member' });
