@@ -86,13 +86,11 @@ export default function ServerSidebar({
     if (dragIdx === -1 || targetIdx === -1 || dragIdx === targetIdx) return;
     const moved = channels.splice(dragIdx, 1)[0];
     channels.splice(targetIdx, 0, moved);
-    // Update positions optimistically via bulk patch — fall back to re-fetch
-    await Promise.all(channels.map((ch, i) =>
-      fetch(`/api/servers/${server.id}/channel/${ch.id}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ position: i }),
-      })
-    ));
+    // Single bulk PATCH instead of N sequential requests
+    await fetch(`/api/servers/${server.id}/channels`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order: channels.map((ch, i) => ({ id: ch.id, position: i })) }),
+    });
     onServerUpdate();
   }
 
@@ -103,12 +101,11 @@ export default function ServerSidebar({
     if (dragIdx === -1 || targetIdx === -1 || dragIdx === targetIdx) return;
     const moved = cats.splice(dragIdx, 1)[0];
     cats.splice(targetIdx, 0, moved);
-    await Promise.all(cats.map((cat, i) =>
-      fetch(`/api/servers/${server.id}/categories`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ categoryId: cat.id, position: i }),
-      })
-    ));
+    // Single bulk PATCH instead of N sequential requests
+    await fetch(`/api/servers/${server.id}/categories`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order: cats.map((cat, i) => ({ id: cat.id, position: i })) }),
+    });
     onServerUpdate();
   }
 

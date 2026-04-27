@@ -61,5 +61,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(201).json({ channel: { id: result.insertedId.toString(), ...channel, serverId: serverId.toString() } });
   }
 
+  // PATCH - bulk reorder channels
+  if (req.method === 'PATCH') {
+    if (!hasManageChannels(server, meId)) return res.status(403).json({ error: 'Missing permissions' });
+    const { order } = req.body; // array of { id, position }
+    if (!Array.isArray(order)) return res.status(400).json({ error: 'order array required' });
+    await Promise.all(order.map(({ id, position }: { id: string; position: number }) =>
+      db.collection('serverChannels').updateOne(
+        { _id: new ObjectId(id), serverId },
+        { $set: { position } }
+      )
+    ));
+    return res.status(200).json({ success: true });
+  }
+
   return res.status(405).json({ error: 'Method not allowed' });
 }

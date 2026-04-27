@@ -57,6 +57,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'PATCH') {
     if (!hasManageChannels()) return res.status(403).json({ error: 'Missing permissions' });
 
+    // Bulk reorder: { order: [{ id, position }] }
+    if (Array.isArray(req.body.order)) {
+      const ops = req.body.order as { id: string; position: number }[];
+      const bulkUpdates: Record<string, unknown> = {};
+      for (const { id, position } of ops) {
+        const catIndex = server.categories.findIndex((c: { id: string }) => c.id === id);
+        if (catIndex !== -1) bulkUpdates[`categories.${catIndex}.position`] = position;
+      }
+      if (Object.keys(bulkUpdates).length > 0) {
+        await db.collection('servers').updateOne({ _id: serverId }, { $set: bulkUpdates });
+      }
+      return res.status(200).json({ success: true });
+    }
+
     const { categoryId, name } = req.body;
     if (!categoryId) return res.status(400).json({ error: 'categoryId required' });
 

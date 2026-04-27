@@ -48,6 +48,7 @@ export default function ServerSettingsModal({ server, currentUser, isOwner, hasP
 
   return (
     <div style={s.overlay} onClick={onClose}>
+      <style>{`@keyframes pr-spin { to { transform: rotate(360deg); } }`}</style>
       <div style={s.modal} onClick={e => e.stopPropagation()}>
         {/* Left sidebar */}
         <div style={s.sidebar}>
@@ -298,8 +299,8 @@ function RolesTab({ server, onUpdate }: { server: ServerData; onUpdate: () => vo
               {PERMISSIONS.map(p => (
                 <div key={p.key} style={{ ...s.permRow, ...(p.danger ? s.permRowDanger : {}) }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 12, color: p.danger ? '#ff6b6b' : 'var(--text)', fontWeight: 500 }}>{p.label}</div>
-                    <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 1 }}>{p.desc}</div>
+                    <div style={{ fontSize: 12, color: p.danger ? '#ff6b6b' : 'var(--text)', fontFamily: 'var(--font-display)', fontWeight: 600 }}>{p.label}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 1, fontFamily: 'var(--font-display)' }}>{p.desc}</div>
                   </div>
                   <button
                     style={{ ...s.toggle, background: perms[p.key] ? (p.danger ? '#ff4444' : 'var(--success, #23a55a)') : 'var(--bg-4, #1e1f22)' }}
@@ -344,6 +345,7 @@ function MembersTab({ server, currentUserId, isOwner, hasPermission, onUpdate }:
   const [expandedMember, setExpandedMember] = useState<string | null>(null);
   const [muteModal, setMuteModal] = useState<{ userId: string; username: string } | null>(null);
   const [muteDuration, setMuteDuration] = useState('10');
+  const [loadingRoles, setLoadingRoles] = useState<Set<string>>(new Set());
 
   const canKick = hasPermission('kickMembers');
   const canBan = hasPermission('banMembers');
@@ -376,10 +378,13 @@ function MembersTab({ server, currentUserId, isOwner, hasPermission, onUpdate }:
   }
 
   async function toggleRole(userId: string, roleId: string, hasRole: boolean) {
+    const key = `${userId}:${roleId}`;
+    setLoadingRoles(prev => new Set(prev).add(key));
     await fetch(`/api/servers/${server.id}/members/${userId}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(hasRole ? { removeRoles: [roleId] } : { addRoles: [roleId] }),
     });
+    setLoadingRoles(prev => { const s = new Set(prev); s.delete(key); return s; });
     onUpdate();
   }
 
@@ -443,19 +448,25 @@ function MembersTab({ server, currentUserId, isOwner, hasPermission, onUpdate }:
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
                         {nonDefaultRoles.map(role => {
                           const hasRole = member.roles.includes(role.id);
+                          const isRoleLoading = loadingRoles.has(`${member.userId}:${role.id}`);
                           return (
                             <button
                               key={role.id}
-                              onClick={() => toggleRole(member.userId, role.id, hasRole)}
+                              onClick={() => !isRoleLoading && toggleRole(member.userId, role.id, hasRole)}
+                              disabled={isRoleLoading}
                               style={{
-                                fontSize: 11, padding: '3px 8px', borderRadius: 4, cursor: 'pointer',
+                                fontSize: 11, padding: '3px 8px', borderRadius: 4, cursor: isRoleLoading ? 'not-allowed' : 'pointer',
                                 border: `1px solid ${role.color}44`,
                                 background: hasRole ? `${role.color}22` : 'var(--bg)',
                                 color: hasRole ? role.color : 'var(--text-3)',
                                 transition: 'all 0.15s',
+                                display: 'flex', alignItems: 'center', gap: 4,
+                                opacity: isRoleLoading ? 0.6 : 1,
                               }}
                             >
-                              {hasRole ? '✓ ' : '+ '}{role.name}
+                              {isRoleLoading ? (
+                                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'pr-spin 0.7s linear infinite' }}><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                              ) : (hasRole ? '✓ ' : '+ ')}{!isRoleLoading && role.name}
                             </button>
                           );
                         })}
@@ -465,7 +476,7 @@ function MembersTab({ server, currentUserId, isOwner, hasPermission, onUpdate }:
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     {canMute && (
                       <button style={{ ...s.btn, ...s.btnSecondary, fontSize: 11, padding: '5px 12px' }} onClick={() => setMuteModal({ userId: member.userId, username: member.username })}>
-                        🔇 Mute
+                        Mute
                       </button>
                     )}
                     {canKick && (

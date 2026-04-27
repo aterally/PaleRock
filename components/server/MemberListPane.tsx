@@ -156,22 +156,26 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
           <div style={st.ctxHeader}>{ctxMenu.username}</div>
           {canManageRoles && (
             <button style={st.ctxItem} onClick={() => { setCtxMenu(null); setShowRoleModal(ctxMenu.userId); }}>
-              ◈ Manage Roles
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+              Manage Roles
             </button>
           )}
           {canMute && (
             <button style={st.ctxItem} onClick={() => { setCtxMenu(null); setMuteModal({ userId: ctxMenu.userId, username: ctxMenu.username }); }}>
-              🔇 Mute
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+              Mute
             </button>
           )}
           {(canKick || canBan) && <div style={st.ctxDivider} />}
           {canKick && (
             <button style={{ ...st.ctxItem, color: '#ffa000' }} onClick={() => kick(ctxMenu.userId, ctxMenu.username)}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h4a3 3 0 0 1 3 3v1"/></svg>
               Kick Member
             </button>
           )}
           {canBan && (
             <button style={{ ...st.ctxItem, color: '#ed4245' }} onClick={() => ban(ctxMenu.userId, ctxMenu.username)}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
               Ban Member
             </button>
           )}
@@ -249,12 +253,15 @@ function RoleAssignModal({ server, userId, onClose, onUpdate }: { server: Server
   const member = server.members.find(m => m.userId === userId);
   if (!member) return null;
   const nonDefaultRoles = server.roles.filter(r => !r.isDefault);
+  const [loadingRoles, setLoadingRoles] = useState<Set<string>>(new Set());
 
   async function toggleRole(roleId: string, has: boolean) {
+    setLoadingRoles(prev => new Set(prev).add(roleId));
     await fetch(`/api/servers/${server.id}/members/${userId}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(has ? { removeRoles: [roleId] } : { addRoles: [roleId] }),
     });
+    setLoadingRoles(prev => { const s = new Set(prev); s.delete(roleId); return s; });
     onUpdate();
   }
 
@@ -265,17 +272,25 @@ function RoleAssignModal({ server, userId, onClose, onUpdate }: { server: Server
           <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, letterSpacing: '0.1em', color: 'var(--text)' }}>MANAGE ROLES — {member.username}</span>
           <button onClick={onClose} style={{ color: 'var(--text-3)', cursor: 'pointer', fontSize: 14, padding: 4, border: 'none', background: 'transparent' }}>✕</button>
         </div>
+        <style>{`@keyframes pr-spin { to { transform: rotate(360deg); } }`}</style>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {nonDefaultRoles.map(role => {
             const has = member.roles.includes(role.id);
+            const isLoading = loadingRoles.has(role.id);
             return (
               <div key={role.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', background: 'var(--bg-3)', borderRadius: 6, border: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{ width: 10, height: 10, borderRadius: '50%', background: role.color }} />
                   <span style={{ fontSize: 13, color: 'var(--text-2)' }}>{role.name}</span>
                 </div>
-                <button style={{ padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontFamily: 'var(--font-display)', fontWeight: 700, background: has ? 'var(--text)' : 'var(--bg-3)', color: has ? 'var(--bg)' : 'var(--text-3)' }} onClick={() => toggleRole(role.id, has)}>
-                  {has ? 'Remove' : 'Add'}
+                <button
+                  style={{ padding: '4px 12px', border: 'none', borderRadius: 4, cursor: isLoading ? 'not-allowed' : 'pointer', fontSize: 11, fontFamily: 'var(--font-display)', fontWeight: 700, background: has ? 'var(--text)' : 'var(--bg-3)', color: has ? 'var(--bg)' : 'var(--text-3)', display: 'flex', alignItems: 'center', gap: 5, minWidth: 64, justifyContent: 'center', opacity: isLoading ? 0.7 : 1, transition: 'opacity 0.15s' }}
+                  onClick={() => !isLoading && toggleRole(role.id, has)}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'pr-spin 0.7s linear infinite', flexShrink: 0 }}><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                  ) : (has ? 'Remove' : 'Add')}
                 </button>
               </div>
             );
@@ -300,7 +315,7 @@ const st: Record<string, React.CSSProperties> = {
   roleBadge: { fontSize: 9, padding: '1px 5px', border: '1px solid', borderRadius: 2, letterSpacing: '0.04em', display: 'inline-block', width: 'fit-content' },
   ctxMenu: { position: 'fixed', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 8, padding: '4px', zIndex: 1000, minWidth: 180, boxShadow: '0 8px 32px rgba(0,0,0,0.5)' },
   ctxHeader: { padding: '6px 10px', fontSize: 10, letterSpacing: '0.1em', color: 'var(--text-3)', fontFamily: 'var(--font-display)', fontWeight: 700, borderBottom: '1px solid var(--border)', marginBottom: 4 },
-  ctxItem: { display: 'block', width: '100%', padding: '7px 10px', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 12, borderRadius: 4, color: 'var(--text-2)', fontFamily: 'var(--font-display)' },
+  ctxItem: { display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 10px', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 12, borderRadius: 4, color: 'var(--text-2)', fontFamily: 'var(--font-display)' },
   ctxDivider: { height: 1, background: 'var(--border)', margin: '3px 0' },
   profileCard: { position: 'fixed', width: 256, background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden', zIndex: 1000, boxShadow: '0 12px 40px rgba(0,0,0,0.6)' },
   profileBanner: { height: 56, width: '100%' },
