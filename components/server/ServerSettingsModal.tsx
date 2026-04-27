@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/router';
 import type { ServerData, ServerRole, CurrentUser } from '@/pages/servers/[serverId]/[channelId]';
 
 interface Props {
@@ -12,7 +11,7 @@ interface Props {
   onLeave: () => void;
 }
 
-type Tab = 'overview' | 'roles' | 'members' | 'invites' | 'danger';
+type Tab = 'overview' | 'roles' | 'members' | 'invites' | 'banned' | 'danger';
 
 const PERMISSIONS = [
   { key: 'viewChannels', label: 'View Channels', desc: 'See channels in this server' },
@@ -37,6 +36,7 @@ export default function ServerSettingsModal({ server, currentUser, isOwner, hasP
     { id: 'roles', label: 'Roles', icon: '◈', show: hasPermission('manageRoles') },
     { id: 'members', label: 'Members', icon: '◎', show: hasPermission('kickMembers') || hasPermission('manageRoles') || hasPermission('banMembers') || hasPermission('muteMembers') },
     { id: 'invites', label: 'Invites', icon: '⊕', show: isOwner || hasPermission('manageServer') },
+    { id: 'banned', label: 'Banned Users', icon: '⊘', show: isOwner || hasPermission('banMembers') },
     { id: 'danger', label: 'Danger Zone', icon: '⚠', show: true },
   ];
 
@@ -87,6 +87,7 @@ export default function ServerSettingsModal({ server, currentUser, isOwner, hasP
           {tab === 'roles' && <RolesTab server={server} onUpdate={onServerUpdate} />}
           {tab === 'members' && <MembersTab server={server} currentUserId={currentUser.id} isOwner={isOwner} hasPermission={hasPermission} onUpdate={onServerUpdate} />}
           {tab === 'invites' && <InvitesTab server={server} />}
+          {tab === 'banned' && <BannedTab server={server} hasPermission={hasPermission} onUpdate={onServerUpdate} />}
           {tab === 'danger' && <DangerTab server={server} isOwner={isOwner} onLeave={onLeave} onDelete={onLeave} />}
         </div>
       </div>
@@ -125,7 +126,7 @@ function OverviewTab({ server, isOwner, hasPermission, onUpdate }: { server: Ser
           onKeyDown={e => e.key === 'Enter' && canEdit && save()}
         />
         {canEdit && (
-          <div style={s.actionRow}>
+          <div style={{ ...s.actionRow, marginTop: 12 }}>
             <button style={{ ...s.btn, ...s.btnSecondary, opacity: name === server.name ? 0.4 : 1 }} onClick={() => setName(server.name)} disabled={name === server.name}>
               Reset
             </button>
@@ -627,6 +628,72 @@ function InvitesTab({ server }: { server: ServerData }) {
   );
 }
 
+// ─── Banned Users Tab ─────────────────────────────────────────────────────────
+function BannedTab({ server, hasPermission, onUpdate }: { server: ServerData; hasPermission: (p: string) => boolean; onUpdate: () => void }) {
+  const [bans, setBans] = useState<{ id: string; username: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [unbanning, setUnbanning] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const r = await fetch(`/api/servers/${server.id}/bans`);
+    if (r.ok) { const d = await r.json(); setBans(d.bans); }
+    setLoading(false);
+  }, [server.id]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function unban(userId: string, username: string) {
+    if (!confirm(`Unban ${username}? They will be able to rejoin via invite.`)) return;
+    setUnbanning(userId);
+    await fetch(`/api/servers/${server.id}/bans?userId=${userId}`, { method: 'DELETE' });
+    setUnbanning(null);
+    load();
+    onUpdate();
+  }
+
+  return (
+    <div style={s.tabContent}>
+      <SectionHeader title="Banned Users" subtitle={`${bans.length} banned user${bans.length !== 1 ? 's' : ''}`} />
+      {loading ? (
+        <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: 13, padding: '32px 0' }}>Loading…</div>
+      ) : bans.length === 0 ? (
+        <div style={{ ...s.card, textAlign: 'center', padding: '32px 16px' }}>
+          <div style={{ fontSize: 24, marginBottom: 8 }}>⊘</div>
+          <div style={{ color: 'var(--text-3)', fontSize: 13 }}>No banned users</div>
+          <div style={{ color: 'var(--text-3)', fontSize: 11, marginTop: 4 }}>Banned members cannot rejoin via invite links</div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {bans.map(ban => {
+            const hue = ban.username.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
+            return (
+              <div key={ban.id} style={{ ...s.card, display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ ...s.avatar, background: `hsl(${hue},10%,18%)`, color: `hsl(${hue},20%,70%)` }}>
+                  {ban.username.slice(0, 2).toUpperCase()}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', fontFamily: 'var(--font-display)' }}>{ban.username}</div>
+                  <div style={{ fontSize: 11, color: '#ed4245', marginTop: 1 }}>Banned</div>
+                </div>
+                {hasPermission('banMembers') && (
+                  <button
+                    style={{ ...s.btn, ...s.btnSecondary, fontSize: 11, padding: '5px 12px', opacity: unbanning === ban.id ? 0.6 : 1 }}
+                    onClick={() => unban(ban.id, ban.username)}
+                    disabled={unbanning === ban.id}
+                  >
+                    {unbanning === ban.id ? 'Unbanning…' : 'Unban'}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Danger Zone ──────────────────────────────────────────────────────────────
 function DangerTab({ server, isOwner, onLeave, onDelete }: { server: ServerData; isOwner: boolean; onLeave: () => void; onDelete: () => void }) {
   async function leaveServer() {
@@ -742,8 +809,7 @@ const s: Record<string, React.CSSProperties> = {
   // Members
   memberCard: { background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px', transition: 'border-color 0.15s' },
   memberCardExpanded: { border: '1px solid rgba(255,255,255,0.15)' },
-  avatar: { width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 11, flexShrink: 0 },
-  badge: { fontSize: 9, letterSpacing: '0.08em', padding: '1px 5px', borderRadius: 3, background: 'rgba(255,215,0,0.1)', color: '#ffd700', border: '1px solid rgba(255,215,0,0.25)', fontFamily: 'var(--font-display)', fontWeight: 700 },
+  avatar: { width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 11, flexShrink: 0 },  badge: { fontSize: 9, letterSpacing: '0.08em', padding: '1px 5px', borderRadius: 3, background: 'rgba(255,215,0,0.1)', color: '#ffd700', border: '1px solid rgba(255,215,0,0.25)', fontFamily: 'var(--font-display)', fontWeight: 700 },
 
   // Mini modal
   miniOverlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 900 },

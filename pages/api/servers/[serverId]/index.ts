@@ -52,9 +52,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             roles: m.roles,
             joinedAt: m.joinedAt,
             bio: user?.bio || '',
+            pronouns: user?.pronouns || '',
+            avatar: user?.avatar || null,
             mutedUntil: m.mutedUntil ? m.mutedUntil.toISOString() : null,
           };
         }),
+        bannedUsers: server.bannedUsers || [],
         channels: channels.map(ch => ({
           id: ch._id.toString(),
           name: ch.name,

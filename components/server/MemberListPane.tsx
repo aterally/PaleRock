@@ -109,6 +109,8 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
           const highestRole = getHighestRole(member.roles);
           const nameColor = highestRole?.color || 'var(--text-2)';
           const hue = member.username.split('').reduce((a: number, c: string) => a + c.charCodeAt(0), 0) % 360;
+          const isMuted = member.mutedUntil && new Date(member.mutedUntil).getTime() > Date.now();
+          const avatarPixels = member.avatar ? (() => { try { return JSON.parse(member.avatar!); } catch { return null; } })() : null;
 
           return (
             <div
@@ -118,15 +120,28 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
               onContextMenu={(e) => openCtx(e, member)}
             >
               <div
-                style={{ ...st.avatar, background: `hsl(${hue},10%,20%)`, border: `1px solid hsl(${hue},10%,30%)`, color: `hsl(${hue},20%,80%)`, cursor: 'pointer' }}
+                style={{ ...st.avatar, background: `hsl(${hue},10%,20%)`, border: `1px solid hsl(${hue},10%,30%)`, color: `hsl(${hue},20%,80%)`, cursor: 'pointer', overflow: 'hidden', padding: 0 }}
                 onClick={(e) => openProfile(e, member)}
                 title="View profile"
               >
-                {member.username.slice(0, 2).toUpperCase()}
+                {avatarPixels ? (
+                  <canvas
+                    ref={el => {
+                      if (!el) return;
+                      const ctx = el.getContext('2d')!;
+                      for (let r = 0; r < 16; r++) for (let c = 0; c < 16; c++) {
+                        ctx.fillStyle = avatarPixels[r][c];
+                        ctx.fillRect(c * 2, r * 2, 2, 2);
+                      }
+                    }}
+                    width={34} height={34}
+                    style={{ width: '100%', height: '100%', imageRendering: 'pixelated', display: 'block' }}
+                  />
+                ) : member.username.slice(0, 2).toUpperCase()}
               </div>
 
               <div style={st.memberInfo}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
                   <span
                     style={{ ...st.memberName, color: nameColor, cursor: 'pointer' }}
                     onClick={(e) => openProfile(e, member)}
@@ -136,6 +151,7 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
                   </span>
                   {isMemberOwner && <span style={st.ownerBadge}>owner</span>}
                   {isMe && <span style={{ ...st.ownerBadge, color: '#23a55a' }}>you</span>}
+                  {isMuted && <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 3, background: 'rgba(237,66,69,0.12)', color: '#ed4245', border: '1px solid rgba(237,66,69,0.3)', fontFamily: 'var(--font-mono)', letterSpacing: '0.04em' }}>muted</span>}
                 </div>
                 <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' as const }}>
                   {server.roles.filter(r => !r.isDefault && member.roles.includes(r.id)).slice(0, 2).map(role => (
@@ -183,43 +199,67 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
       )}
 
       {/* Profile popup */}
-      {profile && profileMember && (
-        <div
-          data-profile="1"
-          style={{ ...st.profileCard, top: profile.y, left: profile.x }}
-          onClick={e => e.stopPropagation()}
-        >
-          <div style={{ ...st.profileBanner, background: `hsl(${profileMember.username.split('').reduce((a:number,c:string)=>a+c.charCodeAt(0),0)%360},20%,14%)` }} />
-          <div style={st.profileBody}>
-            <div style={st.profileAvatarWrap}>
-              <div style={{
-                ...st.profileAvatar,
-                background: `hsl(${profileMember.username.split('').reduce((a:number,c:string)=>a+c.charCodeAt(0),0)%360},10%,20%)`,
-                color: `hsl(${profileMember.username.split('').reduce((a:number,c:string)=>a+c.charCodeAt(0),0)%360},20%,80%)`,
-              }}>
-                {profileMember.username.slice(0,2).toUpperCase()}
+      {profile && profileMember && (() => {
+        const hue = profileMember.username.split('').reduce((a:number,c:string)=>a+c.charCodeAt(0),0)%360;
+        const isMuted = profileMember.mutedUntil && new Date(profileMember.mutedUntil).getTime() > Date.now();
+        const avatarPixels = profileMember.avatar ? (() => { try { return JSON.parse(profileMember.avatar!); } catch { return null; } })() : null;
+        return (
+          <div
+            data-profile="1"
+            style={{ ...st.profileCard, top: profile.y, left: profile.x }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ ...st.profileBanner, background: `hsl(${hue},20%,14%)` }} />
+            <div style={st.profileBody}>
+              <div style={st.profileAvatarWrap}>
+                {avatarPixels ? (
+                  <canvas
+                    ref={el => {
+                      if (!el) return;
+                      const ctx = el.getContext('2d')!;
+                      for (let r = 0; r < 16; r++) for (let c = 0; c < 16; c++) {
+                        ctx.fillStyle = avatarPixels[r][c];
+                        ctx.fillRect(c * 3, r * 3, 3, 3);
+                      }
+                    }}
+                    width={48} height={48}
+                    style={{ borderRadius: 10, border: '3px solid var(--bg-2)', imageRendering: 'pixelated', display: 'block' }}
+                  />
+                ) : (
+                  <div style={{
+                    ...st.profileAvatar,
+                    background: `hsl(${hue},10%,20%)`,
+                    color: `hsl(${hue},20%,80%)`,
+                  }}>
+                    {profileMember.username.slice(0,2).toUpperCase()}
+                  </div>
+                )}
               </div>
-            </div>
-            <div style={st.profileName}>{profileMember.nickname || profileMember.username}</div>
-            {profileMember.nickname && <div style={st.profileUsername}>{profileMember.username}</div>}
-            {profileMember.bio && <div style={st.profileBio}>{profileMember.bio}</div>}
-            {profileRoles.length > 0 && (
-              <div style={{ marginTop: 10 }}>
-                <div style={st.profileSectionLabel}>ROLES</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4, marginTop: 4 }}>
-                  {profileRoles.map(r => (
-                    <span key={r.id} style={{ ...st.roleBadge, borderColor: r.color + '55', color: r.color }}>{r.name}</span>
-                  ))}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <div style={st.profileName}>{profileMember.nickname || profileMember.username}</div>
+                {isMuted && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(237,66,69,0.12)', color: '#ed4245', border: '1px solid rgba(237,66,69,0.3)', fontFamily: 'var(--font-display)', fontWeight: 700 }}>MUTED</span>}
+              </div>
+              {profileMember.nickname && <div style={st.profileUsername}>{profileMember.username}</div>}
+              {profileMember.pronouns && <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2, fontStyle: 'italic' }}>{profileMember.pronouns}</div>}
+              {profileMember.bio && <div style={st.profileBio}>{profileMember.bio}</div>}
+              {profileRoles.length > 0 && (
+                <div style={{ marginTop: 10 }}>
+                  <div style={st.profileSectionLabel}>ROLES</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4, marginTop: 4 }}>
+                    {profileRoles.map(r => (
+                      <span key={r.id} style={{ ...st.roleBadge, borderColor: r.color + '55', color: r.color }}>{r.name}</span>
+                    ))}
+                  </div>
                 </div>
+              )}
+              <div style={{ marginTop: 10 }}>
+                <div style={st.profileSectionLabel}>JOINED SERVER</div>
+                <div style={st.profileDate}>{new Date(profileMember.joinedAt).toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' })}</div>
               </div>
-            )}
-            <div style={{ marginTop: 10 }}>
-              <div style={st.profileSectionLabel}>JOINED SERVER</div>
-              <div style={st.profileDate}>{new Date(profileMember.joinedAt).toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' })}</div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Mute modal */}
       {muteModal && (

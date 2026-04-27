@@ -37,6 +37,8 @@ export interface ServerMember {
   roles: string[];
   joinedAt: string;
   bio: string;
+  pronouns: string;
+  avatar: string | null;
   mutedUntil: string | null;
 }
 
@@ -49,6 +51,7 @@ export interface ServerData {
   categories: ServerCategory[];
   channels: ServerChannel[];
   members: ServerMember[];
+  bannedUsers: string[];
 }
 
 export interface CurrentUser {

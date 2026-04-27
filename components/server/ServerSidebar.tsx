@@ -79,6 +79,14 @@ export default function ServerSidebar({
     setContextMenu(null); onServerUpdate();
   }
 
+  async function moveChannelToCategory(channelId: string, targetCategoryId: string | null) {
+    await fetch(`/api/servers/${server.id}/channel/${channelId}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ categoryId: targetCategoryId }),
+    });
+    onServerUpdate();
+  }
+
   async function reorderChannels(draggedId: string, targetId: string) {
     const channels = [...server.channels].sort((a, b) => a.position - b.position);
     const dragIdx = channels.findIndex(c => c.id === draggedId);
@@ -168,7 +176,13 @@ export default function ServerSidebar({
                 onDrop={(e) => {
                   e.stopPropagation();
                   setDragOver(null);
-                  if (dragging?.type === 'channel' && dragging.id !== ch.id) reorderChannels(dragging.id, ch.id);
+                  if (dragging?.type === 'channel') {
+                    if (dragging.id !== ch.id) reorderChannels(dragging.id, ch.id);
+                    const draggedCh = server.channels.find(c => c.id === dragging.id);
+                    if (draggedCh && draggedCh.categoryId !== null) {
+                      moveChannelToCategory(dragging.id, null);
+                    }
+                  }
                   setDragging(null);
                 }}
                 onDragEnd={() => { setDragging(null); setDragOver(null); }}
@@ -208,9 +222,16 @@ export default function ServerSidebar({
             }}
             onCategoryDragEnd={() => { setDragging(null); setDragOver(null); }}
             isCategoryDragOver={dragOver === 'cat:' + category.id}
-            onChannelDrop={(chId) => {
+            onChannelDrop={(chId, catId) => {
               setDragOver(null);
-              if (dragging?.type === 'channel' && dragging.id !== chId) reorderChannels(dragging.id, chId);
+              if (dragging?.type === 'channel') {
+                if (dragging.id !== chId) reorderChannels(dragging.id, chId);
+                // If channel is from different category, move it
+                const draggedCh = server.channels.find(c => c.id === dragging.id);
+                if (draggedCh && draggedCh.categoryId !== catId) {
+                  moveChannelToCategory(dragging.id, catId);
+                }
+              }
               setDragging(null);
             }}
           />
@@ -309,7 +330,7 @@ function CategorySection({ category, channels, activeChannelId, canManage, dragg
   onCategoryDrop: () => void;
   onCategoryDragEnd: () => void;
   isCategoryDragOver: boolean;
-  onChannelDrop: (chId: string) => void;
+  onChannelDrop: (chId: string, catId: string) => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   return (
@@ -343,7 +364,7 @@ function CategorySection({ category, channels, activeChannelId, canManage, dragg
           onDragStart={() => setDragging({ type: 'channel', id: ch.id })}
           onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(ch.id); }}
           onDragLeave={() => setDragOver(null)}
-          onDrop={(e) => { e.stopPropagation(); onChannelDrop(ch.id); }}
+          onDrop={(e) => { e.stopPropagation(); onChannelDrop(ch.id, category.id); }}
           onDragEnd={() => { setDragging(null); setDragOver(null); }}
         />
       ))}

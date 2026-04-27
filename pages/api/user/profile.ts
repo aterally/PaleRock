@@ -49,6 +49,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       updates.bio = bio;
     }
 
+    const { pronouns, avatar } = req.body;
+    if (pronouns !== undefined) {
+      if (pronouns.length > 40) return res.status(400).json({ error: 'Pronouns max 40 characters' });
+      updates.pronouns = pronouns;
+    }
+    if (avatar !== undefined) {
+      // avatar is a JSON-stringified 16x16 array of color strings
+      updates.avatar = avatar;
+    }
+
     if (newPassword) {
       if (!currentPassword) return res.status(400).json({ error: 'Current password required' });
       if (newPassword.length < 6) return res.status(400).json({ error: 'New password min 6 characters' });
