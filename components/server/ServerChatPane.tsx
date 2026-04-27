@@ -1,0 +1,428 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
+import type { ServerData, ServerChannel, CurrentUser, ServerMember } from '@/pages/servers/[serverId]/[channelId]';
+
+interface Message {
+  id: string;
+  content: string;
+  authorId: string;
+  authorUsername: string;
+  createdAt: string;
+}
+
+interface Props {
+  server: ServerData;
+  channel: ServerChannel;
+  currentUser: CurrentUser;
+  myMember: ServerMember | null | undefined;
+  isOwner: boolean;
+  hasPermission: (perm: string) => boolean;
+  showMembers: boolean;
+  onToggleMembers: () => void;
+}
+
+export default function ServerChatPane({
+  server, channel, currentUser, hasPermission, showMembers, onToggleMembers
+}: Props) {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(true);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const lastIdRef = useRef<string | null>(null);
+  const canSend = hasPermission('sendMessages');
+
+  const fetchMessages = useCallback(async () => {
+    const r = await fetch(`/api/servers/${server.id}/messages/${channel.id}`);
+    if (r.ok) {
+      const data = await r.json();
+      setMessages(data.messages);
+      if (data.messages.length > 0) {
+        lastIdRef.current = data.messages[data.messages.length - 1].id;
+      }
+    }
+    setLoading(false);
+  }, [server.id, channel.id]);
+
+  useEffect(() => {
+    setLoading(true);
+    setMessages([]);
+    lastIdRef.current = null;
+    fetchMessages();
+  }, [fetchMessages]);
+
+  // Scroll to bottom on new messages
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Poll for new messages
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (!lastIdRef.current) return;
+      const r = await fetch(`/api/servers/${server.id}/poll/${channel.id}?after=${lastIdRef.current}`);
+      if (r.ok) {
+        const data = await r.json();
+        if (data.messages.length > 0) {
+          setMessages(prev => [...prev, ...data.messages]);
+          lastIdRef.current = data.messages[data.messages.length - 1].id;
+        }
+      }
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [server.id, channel.id]);
+
+  async function sendMessage() {
+    const content = input.trim();
+    if (!content || !canSend) return;
+    setInput('');
+    const r = await fetch(`/api/servers/${server.id}/messages/${channel.id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content }),
+    });
+    if (r.ok) {
+      const data = await r.json();
+      setMessages(prev => [...prev, data.message]);
+      lastIdRef.current = data.message.id;
+    }
+  }
+
+  function groupMessages(msgs: Message[]) {
+    const groups: { author: string; authorId: string; messages: Message[]; time: string }[] = [];
+    for (const msg of msgs) {
+      const last = groups[groups.length - 1];
+      const timeDiff = last ? (new Date(msg.createdAt).getTime() - new Date(last.messages[last.messages.length - 1].createdAt).getTime()) : Infinity;
+      if (last && last.authorId === msg.authorId && timeDiff < 5 * 60 * 1000) {
+        last.messages.push(msg);
+      } else {
+        groups.push({ author: msg.authorUsername, authorId: msg.authorId, messages: [msg], time: msg.createdAt });
+      }
+    }
+    return groups;
+  }
+
+  // Get member role color
+  function getMemberColor(authorId: string) {
+    const member = server.members.find(m => m.userId === authorId);
+    if (!member) return 'var(--text)';
+    const highestRole = member.roles
+      .map(roleId => server.roles.find(r => r.id === roleId))
+      .filter(Boolean)
+      .sort((a, b) => (b?.position || 0) - (a?.position || 0))[0];
+    return highestRole?.color || 'var(--text)';
+  }
+
+  const groups = groupMessages(messages);
+
+  return (
+    <div style={styles.pane}>
+      {/* Channel header */}
+      <div style={styles.header}>
+        <div style={styles.channelInfo}>
+          <span style={styles.hash}>#</span>
+          <span style={styles.channelName}>{channel.name}</span>
+          {channel.topic && (
+            <>
+              <div style={styles.divider} />
+              <span style={styles.topic}>{channel.topic}</span>
+            </>
+          )}
+        </div>
+        <button
+          style={{ ...styles.headerBtn, color: showMembers ? 'var(--text)' : 'var(--text-3)' }}
+          onClick={onToggleMembers}
+          title="Toggle member list"
+        >
+          <IconMembers />
+        </button>
+      </div>
+
+      {/* Messages */}
+      <div style={styles.messageArea}>
+        {loading ? (
+          <div style={styles.loadingState}>
+            <span style={styles.loadingText}>LOADING MESSAGES</span>
+          </div>
+        ) : messages.length === 0 ? (
+          <div style={styles.emptyState}>
+            <div style={styles.channelIconLarge}>#</div>
+            <p style={styles.emptyTitle}>Welcome to #{channel.name}</p>
+            {channel.topic && <p style={styles.emptyTopic}>{channel.topic}</p>}
+            <p style={styles.emptyHint}>This is the beginning of the #{channel.name} channel.</p>
+          </div>
+        ) : (
+          <>
+            {groups.map((group, i) => {
+              const color = getMemberColor(group.authorId);
+              const initials = group.author.slice(0, 2).toUpperCase();
+              const hue = group.author.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
+              return (
+                <div key={i} style={styles.messageGroup}>
+                  <div style={{
+                    ...styles.avatar,
+                    background: `hsl(${hue}, 10%, 20%)`,
+                    border: `1px solid hsl(${hue}, 10%, 30%)`,
+                    color: `hsl(${hue}, 20%, 80%)`,
+                  }}>
+                    {initials}
+                  </div>
+                  <div style={styles.groupContent}>
+                    <div style={styles.groupHeader}>
+                      <span style={{ ...styles.authorName, color }}>{group.author}</span>
+                      <span style={styles.timestamp}>
+                        {new Date(group.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    {group.messages.map(msg => (
+                      <p key={msg.id} style={styles.messageText}>{msg.content}</p>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={bottomRef} />
+          </>
+        )}
+      </div>
+
+      {/* Input */}
+      <div style={styles.inputArea}>
+        {canSend ? (
+          <div style={styles.inputRow}>
+            <input
+              style={styles.input}
+              placeholder={`Message #${channel.name}`}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+              maxLength={2000}
+            />
+            <button style={styles.sendBtn} onClick={sendMessage} disabled={!input.trim()}>
+              <IconSend />
+            </button>
+          </div>
+        ) : (
+          <div style={styles.noPermission}>
+            You don't have permission to send messages in this channel.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const IconMembers = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+);
+const IconSend = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
+  </svg>
+);
+
+const styles: Record<string, React.CSSProperties> = {
+  pane: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
+    background: 'var(--bg)',
+  },
+  header: {
+    padding: '0 16px',
+    height: 48,
+    borderBottom: '1px solid var(--border)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    flexShrink: 0,
+  },
+  channelInfo: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+    overflow: 'hidden',
+  },
+  hash: {
+    fontSize: 20,
+    color: 'var(--text-3)',
+    fontWeight: 300,
+    flexShrink: 0,
+  },
+  channelName: {
+    fontFamily: 'var(--font-display)',
+    fontWeight: 700,
+    fontSize: 14,
+    letterSpacing: '0.04em',
+    color: 'var(--text)',
+    flexShrink: 0,
+  },
+  divider: {
+    width: 1,
+    height: 16,
+    background: 'var(--border)',
+    flexShrink: 0,
+  },
+  topic: {
+    fontSize: 12,
+    color: 'var(--text-3)',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  headerBtn: {
+    padding: 6,
+    borderRadius: 'var(--radius)',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    border: 'none',
+    background: 'transparent',
+    transition: 'color var(--transition)',
+    flexShrink: 0,
+  },
+  messageArea: {
+    flex: 1,
+    overflowY: 'auto',
+    padding: '16px 16px 0',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  loadingState: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    fontSize: 10,
+    letterSpacing: '0.15em',
+    color: 'var(--text-3)',
+    fontFamily: 'var(--font-display)',
+  },
+  emptyState: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'flex-end',
+    paddingBottom: 16,
+  },
+  channelIconLarge: {
+    fontSize: 48,
+    color: 'var(--text-3)',
+    fontWeight: 300,
+    marginBottom: 8,
+  },
+  emptyTitle: {
+    fontFamily: 'var(--font-display)',
+    fontSize: 20,
+    fontWeight: 700,
+    color: 'var(--text)',
+    marginBottom: 4,
+  },
+  emptyTopic: {
+    fontSize: 13,
+    color: 'var(--text-2)',
+    marginBottom: 4,
+  },
+  emptyHint: {
+    fontSize: 12,
+    color: 'var(--text-3)',
+  },
+  messageGroup: {
+    display: 'flex',
+    gap: 12,
+    marginBottom: 16,
+    alignItems: 'flex-start',
+  },
+  avatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 'var(--radius)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontFamily: 'var(--font-display)',
+    fontWeight: 800,
+    fontSize: 13,
+    flexShrink: 0,
+    letterSpacing: 1,
+    userSelect: 'none',
+    marginTop: 2,
+  },
+  groupContent: {
+    flex: 1,
+    minWidth: 0,
+  },
+  groupHeader: {
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: 8,
+    marginBottom: 3,
+  },
+  authorName: {
+    fontFamily: 'var(--font-display)',
+    fontWeight: 700,
+    fontSize: 13,
+    letterSpacing: '0.02em',
+  },
+  timestamp: {
+    fontSize: 10,
+    color: 'var(--text-3)',
+    letterSpacing: '0.04em',
+  },
+  messageText: {
+    fontSize: 13,
+    color: 'var(--text-2)',
+    lineHeight: 1.5,
+    wordBreak: 'break-word',
+    marginBottom: 2,
+  },
+  inputArea: {
+    padding: '12px 16px',
+    borderTop: '1px solid var(--border)',
+    flexShrink: 0,
+  },
+  inputRow: {
+    display: 'flex',
+    gap: 8,
+    alignItems: 'center',
+    background: 'var(--bg-2)',
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--radius-md)',
+    padding: '0 12px',
+  },
+  input: {
+    flex: 1,
+    background: 'transparent',
+    border: 'none',
+    outline: 'none',
+    color: 'var(--text)',
+    fontSize: 13,
+    padding: '11px 0',
+  },
+  sendBtn: {
+    color: 'var(--text-3)',
+    cursor: 'pointer',
+    padding: '6px',
+    display: 'flex',
+    alignItems: 'center',
+    border: 'none',
+    background: 'transparent',
+    flexShrink: 0,
+    transition: 'color var(--transition)',
+    borderRadius: 'var(--radius)',
+  },
+  noPermission: {
+    padding: '11px 16px',
+    background: 'var(--bg-2)',
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--radius-md)',
+    fontSize: 12,
+    color: 'var(--text-3)',
+    textAlign: 'center',
+  },
+};

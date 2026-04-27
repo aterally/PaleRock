@@ -1,26 +1,94 @@
 import { useState } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/router';
 import type { User, Channel, ActiveView } from '@/pages/app';
+
+export interface ServerStub {
+  id: string;
+  name: string;
+  icon: string | null;
+  memberCount: number;
+}
 
 interface SidebarProps {
   user: User;
   channels: Channel[];
+  servers: ServerStub[];
   activeView: ActiveView;
   activeChannelId: string | null;
   pendingCount: number;
   onViewChange: (v: ActiveView) => void;
   onChannelSelect: (id: string) => void;
   onLogout: () => void;
+  onCreateServer: () => void;
+  onServerUpdate: () => void;
 }
 
 export default function Sidebar({
-  user, channels, activeView, activeChannelId, pendingCount,
-  onViewChange, onChannelSelect, onLogout
+  user, channels, servers, activeView, activeChannelId, pendingCount,
+  onViewChange, onChannelSelect, onLogout, onCreateServer, onServerUpdate
 }: SidebarProps) {
+  const router = useRouter();
   const [logoError, setLogoError] = useState(false);
 
   return (
-    <aside style={styles.sidebar}>
+    <div style={styles.outerWrapper}>
+      {/* Server rail */}
+      <div style={styles.serverRail}>
+        {/* Home button */}
+        <button
+          style={{
+            ...styles.serverIcon,
+            background: activeView !== 'server' ? 'var(--bg-3)' : 'var(--bg-2)',
+            borderColor: activeView !== 'server' ? 'var(--border-bright)' : 'var(--border)',
+          }}
+          onClick={() => router.push('/friends/all')}
+          title="Direct Messages"
+        >
+          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 13, letterSpacing: 1 }}>P</span>
+        </button>
+
+        <div style={styles.railDivider} />
+
+        {/* Server list */}
+        {servers.map(srv => {
+          const initials = srv.name.slice(0, 2).toUpperCase();
+          const hue = srv.name.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
+          const isActive = router.pathname.startsWith('/servers') && router.query.serverId === srv.id;
+          return (
+            <button
+              key={srv.id}
+              style={{
+                ...styles.serverIcon,
+                background: `hsl(${hue}, 8%, 15%)`,
+                borderColor: isActive ? `hsl(${hue}, 20%, 40%)` : 'transparent',
+                color: `hsl(${hue}, 20%, 75%)`,
+                fontFamily: 'var(--font-display)',
+                fontWeight: 800,
+                fontSize: 14,
+                outline: isActive ? `2px solid hsl(${hue}, 20%, 40%)` : 'none',
+                outlineOffset: 2,
+              }}
+              title={srv.name}
+              onClick={() => router.push(`/servers/${srv.id}`)}
+            >
+              {initials}
+            </button>
+          );
+        })}
+
+        {/* Create server */}
+        <button
+          style={{ ...styles.serverIcon, background: 'transparent', borderColor: 'var(--border)', color: 'var(--text-3)', fontSize: 20, fontWeight: 300 }}
+          title="Create Server"
+          onClick={onCreateServer}
+        >
+          +
+        </button>
+      </div>
+
+      {/* Main sidebar - only show when not in server view */}
+      <aside style={styles.sidebar}>
       {/* Logo */}
       <div style={styles.logoArea}>
         <div style={styles.logoMark}>
@@ -45,13 +113,13 @@ export default function Sidebar({
         <NavItem
           label="MESSAGES"
           active={activeView === 'chat'}
-          onClick={() => channels.length > 0 ? onChannelSelect(channels[0].id) : onViewChange('chat')}
+          onClick={() => channels.length > 0 ? router.push(`/messages/${channels[0].id}`) : router.push('/messages')}
           icon={<IconMessages />}
         />
         <NavItem
           label="FRIENDS"
           active={activeView === 'friends'}
-          onClick={() => onViewChange('friends')}
+          onClick={() => router.push('/friends/all')}
           icon={<IconFriends />}
           badge={pendingCount > 0 ? pendingCount : undefined}
         />
@@ -71,7 +139,7 @@ export default function Sidebar({
                 key={ch.id}
                 channel={ch}
                 active={activeChannelId === ch.id}
-                onClick={() => onChannelSelect(ch.id)}
+                onClick={() => router.push(`/messages/${ch.id}`)}
               />
             ))
           )}
@@ -80,7 +148,7 @@ export default function Sidebar({
 
       {/* User footer */}
       <div style={styles.userFooter}>
-        <button onClick={() => onViewChange('profile')} style={{
+        <button onClick={() => router.push('/profile')} style={{
           ...styles.userBtn,
           background: activeView === 'profile' ? 'var(--bg-3)' : 'transparent',
         }}>
@@ -95,6 +163,7 @@ export default function Sidebar({
         </button>
       </div>
     </aside>
+    </div>
   );
 }
 
@@ -188,6 +257,44 @@ const IconLogout = () => (
 );
 
 const styles: Record<string, React.CSSProperties> = {
+  outerWrapper: {
+    display: 'flex',
+    height: '100vh',
+    flexShrink: 0,
+  },
+  serverRail: {
+    width: 56,
+    minWidth: 56,
+    height: '100vh',
+    background: '#050505',
+    borderRight: '1px solid var(--border)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    padding: '10px 0',
+    gap: 6,
+    overflowY: 'auto',
+  },
+  serverIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 'var(--radius-md)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    border: '1px solid transparent',
+    transition: 'all var(--transition)',
+    flexShrink: 0,
+    color: 'var(--text-2)',
+  },
+  railDivider: {
+    width: 24,
+    height: 1,
+    background: 'var(--border)',
+    margin: '2px 0',
+    flexShrink: 0,
+  },
   sidebar: {
     width: 'var(--sidebar-width)',
     minWidth: 'var(--sidebar-width)',

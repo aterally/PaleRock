@@ -14,7 +14,7 @@ export default function AuthPage() {
 
   useEffect(() => {
     fetch('/api/auth/me').then(r => {
-      if (r.ok) router.replace('/app');
+      if (r.ok) router.replace('/friends/all');
       else setChecking(false);
     }).catch(() => setChecking(false));
   }, [router]);
@@ -44,7 +44,7 @@ export default function AuthPage() {
       });
       const data = await r.json();
       if (!r.ok) { setError(data.error || 'Something went wrong'); return; }
-      router.push('/app');
+      router.push('/friends/all');
     } catch {
       setError('Network error');
     } finally {
