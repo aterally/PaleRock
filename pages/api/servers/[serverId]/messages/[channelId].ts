@@ -23,12 +23,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!myMember) return res.status(403).json({ error: 'Not a member' });
 
   const isOwner = server.ownerId.equals(meId);
+  const srv = server; // non-null capture for use inside closures
 
   // Build effective permissions: check assigned roles + @everyone (isDefault role)
   function hasPerm(perm: string): boolean {
     if (isOwner) return true;
     const myRoleIds: string[] = myMember.roles || [];
-    return server.roles.some((role: { id: string; isDefault: boolean; permissions: Record<string, boolean> }) => {
+    return srv.roles.some((role: { id: string; isDefault: boolean; permissions: Record<string, boolean> }) => {
       const applies = role.isDefault || myRoleIds.includes(role.id);
       return applies && (role.permissions?.[perm] || role.permissions?.administrator);
     });
