@@ -154,7 +154,8 @@ function OverviewTab({ server, isOwner, hasPermission, onUpdate }: { server: Ser
 
 // ─── Roles Tab ──────────────────────────────────────────────────────────────────
 function RolesTab({ server, onUpdate }: { server: ServerData; onUpdate: () => void }) {
-  const [selectedRole, setSelectedRole] = useState<ServerRole | null>(null);
+  // Store only the ID so selectedRole always reflects live server data
+  const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [perms, setPerms] = useState<Record<string, boolean>>({});
   const [editColor, setEditColor] = useState('#ffffff');
   const [editName, setEditName] = useState('');
@@ -164,8 +165,11 @@ function RolesTab({ server, onUpdate }: { server: ServerData; onUpdate: () => vo
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  // Derive from live server prop — never stale after onUpdate()
+  const selectedRole = selectedRoleId ? (server.roles.find(r => r.id === selectedRoleId) ?? null) : null;
+
   function selectRole(role: ServerRole) {
-    setSelectedRole(role);
+    setSelectedRoleId(role.id);
     setPerms({ ...role.permissions });
     setEditColor(role.color || '#ffffff');
     setEditName(role.name);
@@ -190,13 +194,18 @@ function RolesTab({ server, onUpdate }: { server: ServerData; onUpdate: () => vo
       body: JSON.stringify({ roleId: selectedRole.id, name: editName, color: editColor, permissions: perms }),
     });
     setSaving(false);
-    if (r.ok) { setSaved(true); setTimeout(() => setSaved(false), 2000); onUpdate(); }
+    if (r.ok) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+      // onUpdate refreshes server prop; selectedRole re-derives from the new data automatically
+      onUpdate();
+    }
   }
 
   async function deleteRole(roleId: string) {
     if (!confirm('Delete this role? Members with this role will lose its permissions.')) return;
     await fetch(`/api/servers/${server.id}/roles?roleId=${roleId}`, { method: 'DELETE' });
-    setSelectedRole(null); onUpdate();
+    setSelectedRoleId(null); onUpdate();
   }
 
   const sortedRoles = server.roles.slice().sort((a, b) => b.position - a.position);
@@ -205,7 +214,7 @@ function RolesTab({ server, onUpdate }: { server: ServerData; onUpdate: () => vo
     <div style={{ ...s.tabContent, maxWidth: '100%' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <SectionHeader title="Roles" subtitle={`${server.roles.length} role${server.roles.length !== 1 ? 's' : ''} — click a role to edit`} />
-        <button style={{ ...s.btn, ...s.btnPrimary, marginTop: 4 }} onClick={() => { setShowCreate(true); setSelectedRole(null); }}>
+        <button style={{ ...s.btn, ...s.btnPrimary, marginTop: 4 }} onClick={() => { setShowCreate(true); setSelectedRoleId(null); }}>
           + New Role
         </button>
       </div>
@@ -258,7 +267,7 @@ function RolesTab({ server, onUpdate }: { server: ServerData; onUpdate: () => vo
                 <div style={{ width: 12, height: 12, borderRadius: '50%', background: editColor }} />
                 <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', fontFamily: 'var(--font-display)' }}>{editName}</span>
               </div>
-              <button style={s.iconBtn} onClick={() => setSelectedRole(null)}>✕</button>
+              <button style={s.iconBtn} onClick={() => setSelectedRoleId(null)}>✕</button>
             </div>
 
             {!selectedRole.isDefault && (
@@ -308,7 +317,7 @@ function RolesTab({ server, onUpdate }: { server: ServerData; onUpdate: () => vo
                 </button>
               )}
               <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
-                <button style={{ ...s.btn, ...s.btnSecondary }} onClick={() => setSelectedRole(null)}>Cancel</button>
+                <button style={{ ...s.btn, ...s.btnSecondary }} onClick={() => setSelectedRoleId(null)}>Cancel</button>
                 <button style={{ ...s.btn, ...s.btnPrimary, opacity: saving ? 0.6 : 1 }} onClick={saveRole} disabled={saving}>
                   {saved ? '✓ Saved' : saving ? 'Saving...' : 'Save Changes'}
                 </button>
@@ -659,7 +668,7 @@ function SectionHeader({ title, subtitle, danger }: { title: string; subtitle?: 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const s: Record<string, React.CSSProperties> = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 800, backdropFilter: 'blur(4px)' },
-  modal: { background: 'var(--bg-1)', border: '1px solid var(--border)', borderRadius: 8, display: 'flex', width: 'min(88vw, 860px)', height: 'min(85vh, 660px)', overflow: 'hidden', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' },
+  modal: { background: 'var(--bg-1)', border: '1px solid var(--border)', borderRadius: 8, display: 'flex', width: 'min(94vw, 1060px)', height: 'min(90vh, 800px)', overflow: 'hidden', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' },
 
   // Sidebar
   sidebar: { width: 220, minWidth: 220, background: 'var(--bg-2)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
@@ -677,15 +686,15 @@ const s: Record<string, React.CSSProperties> = {
 
   // Content
   content: { flex: 1, overflowY: 'auto', padding: '28px 28px' },
-  tabContent: { display: 'flex', flexDirection: 'column', maxWidth: 560 },
+  tabContent: { display: 'flex', flexDirection: 'column', maxWidth: 580, gap: 0 },
 
   // Cards
-  card: { background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '16px' },
+  card: { background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '16px', boxSizing: 'border-box' as const },
   cardTitle: { fontSize: 12, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--font-display)', marginBottom: 12 },
   dangerCard: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, background: 'rgba(237,66,69,0.04)', border: '1px solid rgba(237,66,69,0.2)', marginBottom: 10 },
 
   // Stats
-  statsGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 16 },
+  statsGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 16, width: '100%' },
   statCard: { background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 2 },
   statIcon: { fontSize: 14, color: 'var(--text-3)', marginBottom: 4 },
   statValue: { fontSize: 24, fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--text)', lineHeight: 1 },
