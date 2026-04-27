@@ -56,15 +56,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .toArray();
 
     // Fetch author avatars
-    const authorIds = Array.from(new Set(messages.map((m: { authorId: ObjectId }) => m.authorId.toString())));
+    const authorIds = Array.from(new Set(messages.map((m: any) => m.authorId.toString())));
     const authors = await db.collection('users').find(
       { _id: { $in: authorIds.map((id: string) => new ObjectId(id)) } },
       { projection: { avatar: 1 } }
     ).toArray();
     const avatarMap: Record<string, string | null> = {};
-    authors.forEach((a: { _id: ObjectId; avatar?: string }) => { avatarMap[a._id.toString()] = a.avatar || null; });
+    authors.forEach((a: any) => { avatarMap[a._id.toString()] = a.avatar || null; });
 
-    return res.status(200).json({ messages: messages.reverse().map((m: { _id: ObjectId; content: string; authorId: ObjectId; authorUsername: string; createdAt: Date }) => ({
+    return res.status(200).json({ messages: messages.reverse().map((m: any) => ({
       id: m._id.toString(),
       content: m.content,
       authorId: m.authorId.toString(),
