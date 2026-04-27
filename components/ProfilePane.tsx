@@ -443,7 +443,7 @@ function StatusMsg({ text, type }: { text: string; type: 'error' | 'success' }) 
 
 const styles: Record<string, React.CSSProperties> = {
   pane: { flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: 'var(--bg)' },
-  header: { padding: '20px 32px', borderBottom: '1px solid var(--border)', background: 'var(--bg-1)', flexShrink: 0 },
+  header: { padding: '0 32px', height: 60, borderBottom: '1px solid var(--border)', background: 'var(--bg-1)', flexShrink: 0, display: 'flex', alignItems: 'center' },
   title: { fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, letterSpacing: '0.15em' },
   content: { flex: 1, overflowY: 'auto', padding: '28px 32px', maxWidth: 560, display: 'flex', flexDirection: 'column', gap: 24 },
   avatarSection: { display: 'flex', alignItems: 'center', gap: 20, padding: '20px', background: 'var(--bg-1)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' },

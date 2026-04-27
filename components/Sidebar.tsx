@@ -152,7 +152,7 @@ export default function Sidebar({
           ...styles.userBtn,
           background: activeView === 'profile' ? 'var(--bg-3)' : 'transparent',
         }}>
-          <Avatar username={user.username} size={28} />
+          <Avatar username={user.username} avatar={(user as any).avatar} size={28} />
           <div style={styles.userInfo}>
             <span style={styles.userName}>{user.username}</span>
             <span style={styles.userStatus}>online</span>
@@ -200,7 +200,7 @@ function DmItem({ channel, active, onClick }: { channel: Channel; active: boolea
       background: active ? 'var(--bg-3)' : 'transparent',
       color: active ? 'var(--text)' : 'var(--text-2)',
     }}>
-      <Avatar username={other.username} size={24} />
+      <Avatar username={other.username} avatar={(other as any).avatar} size={24} />
       <div style={{ flex: 1, overflow: 'hidden', textAlign: 'left' }}>
         <div style={{ fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-display)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {other.username}
@@ -215,9 +215,43 @@ function DmItem({ channel, active, onClick }: { channel: Channel; active: boolea
   );
 }
 
-export function Avatar({ username, size = 32 }: { username: string; size?: number }) {
+export function Avatar({ username, avatar, size = 32 }: { username: string; avatar?: string | null; size?: number }) {
   const initials = username.slice(0, 2).toUpperCase();
   const hue = username.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
+  const avatarPixels: string[][] | null = (() => {
+    if (!avatar) return null;
+    try { return JSON.parse(avatar); } catch { return null; }
+  })();
+
+  if (avatarPixels) {
+    return (
+      <canvas
+        ref={el => {
+          if (!el) return;
+          const ctx = el.getContext('2d')!;
+          ctx.clearRect(0, 0, size, size);
+          const cellSize = size / 16;
+          for (let r = 0; r < 16; r++) for (let c = 0; c < 16; c++) {
+            if (avatarPixels[r][c] !== 'transparent') {
+              ctx.fillStyle = avatarPixels[r][c];
+              ctx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
+            }
+          }
+        }}
+        width={size}
+        height={size}
+        style={{
+          width: size, height: size,
+          borderRadius: 'var(--radius)',
+          border: `1px solid hsl(${hue}, 10%, 30%)`,
+          imageRendering: 'pixelated',
+          display: 'block',
+          flexShrink: 0,
+        }}
+      />
+    );
+  }
+
   return (
     <div style={{
       width: size, height: size, borderRadius: 'var(--radius)',
@@ -306,11 +340,13 @@ const styles: Record<string, React.CSSProperties> = {
     overflow: 'hidden',
   },
   logoArea: {
-    padding: '20px 16px',
+    padding: '0 16px',
+    height: 60,
     display: 'flex',
     alignItems: 'center',
     gap: 10,
     borderBottom: '1px solid var(--border)',
+    flexShrink: 0,
   },
   logoMark: {
     width: 28, height: 28,

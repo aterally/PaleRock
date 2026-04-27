@@ -52,18 +52,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       { projection: { password: 0 } }
     ).toArray();
 
-    const senderMap: Record<string, { username: string }> = {};
-    senders.forEach(s => { senderMap[s._id.toString()] = { username: s.username }; });
+    const senderMap: Record<string, { username: string; avatar?: string | null }> = {};
+    senders.forEach(s => { senderMap[s._id.toString()] = { username: s.username, avatar: s.avatar || null }; });
 
     const result = messages.map(m => ({
       id: m._id.toString(),
       channelId: m.channelId.toString(),
       senderId: m.senderId.toString(),
       senderUsername: senderMap[m.senderId.toString()]?.username || 'Unknown',
+      senderAvatar: senderMap[m.senderId.toString()]?.avatar || null,
       content: m.content,
       createdAt: m.createdAt,
       editedAt: m.editedAt || null,
-      // Expandable: reactions, replyTo, attachments
     }));
 
     return res.status(200).json({ messages: result, hasMore: messages.length === limit });
@@ -105,6 +105,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         channelId,
         senderId: payload.userId,
         senderUsername: payload.username,
+        senderAvatar: (await db.collection('users').findOne({ _id: meId }, { projection: { avatar: 1 } }))?.avatar || null,
         content: content.trim(),
         createdAt: now,
         editedAt: null,

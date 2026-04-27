@@ -55,11 +55,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .limit(50)
       .toArray();
 
-    return res.status(200).json({ messages: messages.reverse().map(m => ({
+    // Fetch author avatars
+    const authorIds = Array.from(new Set(messages.map((m: { authorId: ObjectId }) => m.authorId.toString())));
+    const authors = await db.collection('users').find(
+      { _id: { $in: authorIds.map((id: string) => new ObjectId(id)) } },
+      { projection: { avatar: 1 } }
+    ).toArray();
+    const avatarMap: Record<string, string | null> = {};
+    authors.forEach((a: { _id: ObjectId; avatar?: string }) => { avatarMap[a._id.toString()] = a.avatar || null; });
+
+    return res.status(200).json({ messages: messages.reverse().map((m: { _id: ObjectId; content: string; authorId: ObjectId; authorUsername: string; createdAt: Date }) => ({
       id: m._id.toString(),
       content: m.content,
       authorId: m.authorId.toString(),
       authorUsername: m.authorUsername,
+      authorAvatar: avatarMap[m.authorId.toString()] || null,
       createdAt: m.createdAt,
     }))});
   }
@@ -78,11 +88,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!content || content.trim().length === 0) return res.status(400).json({ error: 'Content required' });
     if (content.length > 2000) return res.status(400).json({ error: 'Message too long' });
 
+    const authorUser = await db.collection('users').findOne({ _id: meId }, { projection: { avatar: 1 } });
     const message = {
       channelId,
       serverId,
       authorId: meId,
       authorUsername: payload.username,
+      authorAvatar: authorUser?.avatar || null,
       content: content.trim(),
       createdAt: new Date(),
     };

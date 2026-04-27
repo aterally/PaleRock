@@ -30,6 +30,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const server = await db.collection('servers').findOne({ _id: invite.serverId });
   if (!server) return res.status(404).json({ error: 'Server not found' });
 
+  // Check if banned
+  const isBanned = (server.bannedUsers || []).some((id: ObjectId) => id.equals(meId));
+  if (isBanned) {
+    return res.status(403).json({ error: 'You are banned from this server' });
+  }
+
   // Check if already a member
   const alreadyMember = server.members.some((m: { userId: ObjectId }) => m.userId.equals(meId));
   if (alreadyMember) {

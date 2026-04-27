@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { ServerData, ServerChannel, CurrentUser, ServerMember } from '@/pages/servers/[serverId]/[channelId]';
+import { Avatar } from '@/components/Sidebar';
 
 interface Message {
   id: string;
   content: string;
   authorId: string;
   authorUsername: string;
+  authorAvatar?: string | null;
   createdAt: string;
 }
 
@@ -120,14 +122,14 @@ export default function ServerChatPane({
   }
 
   function groupMessages(msgs: Message[]) {
-    const groups: { author: string; authorId: string; messages: Message[]; time: string }[] = [];
+    const groups: { author: string; authorId: string; authorAvatar?: string | null; messages: Message[]; time: string }[] = [];
     for (const msg of msgs) {
       const last = groups[groups.length - 1];
       const timeDiff = last ? (new Date(msg.createdAt).getTime() - new Date(last.messages[last.messages.length - 1].createdAt).getTime()) : Infinity;
       if (last && last.authorId === msg.authorId && timeDiff < 5 * 60 * 1000) {
         last.messages.push(msg);
       } else {
-        groups.push({ author: msg.authorUsername, authorId: msg.authorId, messages: [msg], time: msg.createdAt });
+        groups.push({ author: msg.authorUsername, authorId: msg.authorId, authorAvatar: msg.authorAvatar, messages: [msg], time: msg.createdAt });
       }
     }
     return groups;
@@ -186,23 +188,14 @@ export default function ServerChatPane({
           <>
             {groups.map((group, i) => {
               const color = getMemberColor(group.authorId);
-              const initials = group.author.slice(0, 2).toUpperCase();
-              const hue = group.author.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
               return (
                 <div key={i} style={styles.messageGroup}>
                   <div
-                    style={{
-                      ...styles.avatar,
-                      background: `hsl(${hue}, 10%, 20%)`,
-                      border: `1px solid hsl(${hue}, 10%, 30%)`,
-                      color: `hsl(${hue}, 20%, 80%)`,
-                      cursor: 'pointer',
-                    }}
+                    style={{ cursor: 'pointer', flexShrink: 0 }}
                     onClick={(e) => openProfile(e, group.authorId, group.author)}
                     title="View profile"
                   >
-                    {initials}
-                  </div>
+                    <Avatar username={group.author} avatar={group.authorAvatar} size={36} />
                   <div style={styles.groupContent}>
                     <div style={styles.groupHeader}>
                       <span
@@ -347,7 +340,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   header: {
     padding: '0 16px',
-    height: 48,
+    height: 60,
     borderBottom: '1px solid var(--border)',
     display: 'flex',
     alignItems: 'center',

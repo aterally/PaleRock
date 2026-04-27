@@ -39,6 +39,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       userId: other?._id.toString(),
       username: other?.username,
       bio: other?.bio || '',
+      avatar: other?.avatar || null,
       channelId: ch._id.toString(),
       since: ch.createdAt,
     };
@@ -66,12 +67,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     friends,
     received: received.map(r => ({
       id: r._id.toString(),
-      fromUser: { id: r.fromUser._id.toString(), username: r.fromUser.username, bio: r.fromUser.bio || '' },
+      fromUser: { id: r.fromUser._id.toString(), username: r.fromUser.username, bio: r.fromUser.bio || '', avatar: r.fromUser.avatar || null },
       createdAt: r.createdAt,
     })),
     sent: sent.map(r => ({
       id: r._id.toString(),
-      toUser: { id: r.toUser._id.toString(), username: r.toUser.username, bio: r.toUser.bio || '' },
+      toUser: { id: r.toUser._id.toString(), username: r.toUser.username, bio: r.toUser.bio || '', avatar: r.toUser.avatar || null },
       createdAt: r.createdAt,
     })),
   });

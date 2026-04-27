@@ -452,7 +452,7 @@ const IconFolder = () => (
 
 const styles: Record<string, React.CSSProperties> = {
   sidebar: { width: 240, minWidth: 240, height: '100vh', background: 'var(--bg-1)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' },
-  header: { padding: '14px 12px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 },
+  header: { padding: '0 12px', height: 60, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 },
   backBtn: { color: 'var(--text-3)', padding: 4, borderRadius: 'var(--radius)', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'color var(--transition)', flexShrink: 0 },
   serverName: { flex: 1, fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14, letterSpacing: '0.06em', color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   settingsBtn: { color: 'var(--text-3)', padding: 4, borderRadius: 'var(--radius)', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'color var(--transition)', flexShrink: 0 },

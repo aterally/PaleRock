@@ -44,6 +44,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         id: other._id.toString(),
         username: other.username,
         bio: other.bio || '',
+        avatar: other.avatar || null,
       } : null,
     };
   });

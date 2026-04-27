@@ -9,13 +9,14 @@ export interface Friend {
   userId: string;
   username: string;
   bio: string;
+  avatar?: string | null;
   channelId: string;
   since: string;
 }
 export interface FriendRequest {
   id: string;
-  fromUser?: { id: string; username: string; bio: string };
-  toUser?: { id: string; username: string; bio: string };
+  fromUser?: { id: string; username: string; bio: string; avatar?: string | null };
+  toUser?: { id: string; username: string; bio: string; avatar?: string | null };
   createdAt: string;
 }
 
@@ -202,12 +203,9 @@ export default function FriendsPage() {
 }
 
 function FriendRow({ friend, onMessage }: { friend: Friend; onMessage: () => void }) {
-  const hue = friend.username.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
   return (
     <div style={styles.row}>
-      <div style={{ ...styles.avatar, background: `hsl(${hue}, 10%, 20%)`, border: `1px solid hsl(${hue}, 10%, 30%)`, color: `hsl(${hue}, 20%, 80%)` }}>
-        {friend.username.slice(0, 2).toUpperCase()}
-      </div>
+      <Avatar username={friend.username} avatar={friend.avatar} size={38} />
       <div style={styles.rowInfo}>
         <span style={styles.rowName}>{friend.username}</span>
         {friend.bio && <span style={styles.rowSub}>{friend.bio}</span>}
@@ -220,7 +218,7 @@ function FriendRow({ friend, onMessage }: { friend: Friend; onMessage: () => voi
 }
 
 function RequestRow({ user, type, date, loading, onAccept, onDecline, onCancel }: {
-  user: { id: string; username: string; bio: string };
+  user: { id: string; username: string; bio: string; avatar?: string | null };
   type: 'received' | 'sent';
   date: string;
   loading: boolean;
@@ -228,12 +226,9 @@ function RequestRow({ user, type, date, loading, onAccept, onDecline, onCancel }
   onDecline?: () => void;
   onCancel?: () => void;
 }) {
-  const hue = user.username.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
   return (
     <div style={{ ...styles.row, opacity: loading ? 0.6 : 1 }}>
-      <div style={{ ...styles.avatar, background: `hsl(${hue}, 10%, 20%)`, border: `1px solid hsl(${hue}, 10%, 30%)`, color: `hsl(${hue}, 20%, 80%)` }}>
-        {user.username.slice(0, 2).toUpperCase()}
-      </div>
+      <Avatar username={user.username} avatar={user.avatar} size={38} />
       <div style={styles.rowInfo}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={styles.rowName}>{user.username}</span>

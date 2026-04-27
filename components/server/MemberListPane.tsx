@@ -93,6 +93,15 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
     setMuteModal(null); onServerUpdate();
   }
 
+  async function unmute(userId: string) {
+    setCtxMenu(null);
+    await fetch(`/api/servers/${server.id}/members/${userId}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mute: false, muteDuration: 0 }),
+    });
+    onServerUpdate();
+  }
+
   const profileMember = profile ? server.members.find(m => m.userId === profile.userId) : null;
   const profileRoles = profileMember ? server.roles.filter(r => !r.isDefault && profileMember.roles.includes(r.id)) : [];
 
@@ -151,7 +160,19 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
                   </span>
                   {isMemberOwner && <span style={st.ownerBadge}>owner</span>}
                   {isMe && <span style={{ ...st.ownerBadge, color: '#23a55a' }}>you</span>}
-                  {isMuted && <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 3, background: 'rgba(237,66,69,0.12)', color: '#ed4245', border: '1px solid rgba(237,66,69,0.3)', fontFamily: 'var(--font-mono)', letterSpacing: '0.04em' }}>muted</span>}
+                  {isMuted && (() => {
+                    const msLeft = new Date(member.mutedUntil!).getTime() - Date.now();
+                    const totalMins = Math.ceil(msLeft / 60000);
+                    let durationLabel: string;
+                    if (totalMins < 60) durationLabel = `${totalMins}m`;
+                    else if (totalMins < 1440) durationLabel = `${Math.ceil(totalMins / 60)}h`;
+                    else durationLabel = `${Math.ceil(totalMins / 1440)}d`;
+                    return (
+                      <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 3, background: 'rgba(237,66,69,0.12)', color: '#ed4245', border: '1px solid rgba(237,66,69,0.3)', fontFamily: 'var(--font-mono)', letterSpacing: '0.04em' }}>
+                        muted {durationLabel}
+                      </span>
+                    );
+                  })()}
                 </div>
                 <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' as const }}>
                   {server.roles.filter(r => !r.isDefault && member.roles.includes(r.id)).slice(0, 2).map(role => (
@@ -176,12 +197,21 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
               Manage Roles
             </button>
           )}
-          {canMute && (
-            <button style={st.ctxItem} onClick={() => { setCtxMenu(null); setMuteModal({ userId: ctxMenu.userId, username: ctxMenu.username }); }}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-              Mute
-            </button>
-          )}
+          {canMute && (() => {
+            const ctxMember = ctxMenu ? server.members.find(m => m.userId === ctxMenu.userId) : null;
+            const ctxIsMuted = ctxMember?.mutedUntil && new Date(ctxMember.mutedUntil).getTime() > Date.now();
+            return ctxIsMuted ? (
+              <button style={{ ...st.ctxItem, color: '#23a55a' }} onClick={() => unmute(ctxMenu!.userId)}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                Unmute
+              </button>
+            ) : (
+              <button style={st.ctxItem} onClick={() => { setCtxMenu(null); setMuteModal({ userId: ctxMenu!.userId, username: ctxMenu!.username }); }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                Mute
+              </button>
+            );
+          })()}
           {(canKick || canBan) && <div style={st.ctxDivider} />}
           {canKick && (
             <button style={{ ...st.ctxItem, color: '#ffa000' }} onClick={() => kick(ctxMenu.userId, ctxMenu.username)}>
@@ -344,7 +374,7 @@ function RoleAssignModal({ server, userId, onClose, onUpdate }: { server: Server
 
 const st: Record<string, React.CSSProperties> = {
   pane: { width: 260, minWidth: 260, height: '100vh', background: 'var(--bg-1)', borderLeft: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' },
-  header: { padding: '14px 16px 10px', borderBottom: '1px solid var(--border)', flexShrink: 0 },
+  header: { padding: '0 16px', height: 60, borderBottom: '1px solid var(--border)', flexShrink: 0, display: 'flex', alignItems: 'center' },
   title: { fontSize: 10, letterSpacing: '0.14em', color: 'var(--text-3)', fontFamily: 'var(--font-display)', fontWeight: 700 },
   list: { flex: 1, overflowY: 'auto', padding: '8px 8px', display: 'flex', flexDirection: 'column', gap: 2 },
   memberItem: { display: 'flex', alignItems: 'center', gap: 9, padding: '7px 8px', borderRadius: 'var(--radius-md)', transition: 'background var(--transition)', cursor: 'default' },

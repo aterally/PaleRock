@@ -32,7 +32,7 @@ export interface Channel {
   type: string;
   updatedAt: string;
   lastMessage: { content: string; senderId: string; createdAt: string } | null;
-  otherUser: { id: string; username: string; bio: string } | null;
+  otherUser: { id: string; username: string; bio: string; avatar?: string | null } | null;
 }
 
 export type ActiveView = 'chat' | 'friends' | 'profile' | 'server';

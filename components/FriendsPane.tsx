@@ -155,6 +155,7 @@ export default function FriendsPane({ onRequestAccepted, onPendingCountChange }:
                   key={req.id}
                   username={req.fromUser!.username}
                   bio={req.fromUser!.bio}
+                  avatar={(req.fromUser as any).avatar}
                   date={req.createdAt}
                   loading={actionLoading === req.id}
                   actions={
@@ -185,6 +186,7 @@ export default function FriendsPane({ onRequestAccepted, onPendingCountChange }:
                   key={req.id}
                   username={req.toUser!.username}
                   bio={req.toUser!.bio}
+                  avatar={(req.toUser as any).avatar}
                   date={req.createdAt}
                   loading={actionLoading === req.id}
                   actions={
@@ -205,13 +207,13 @@ export default function FriendsPane({ onRequestAccepted, onPendingCountChange }:
   );
 }
 
-function RequestCard({ username, bio, date, actions, loading }: {
-  username: string; bio: string; date: string;
+function RequestCard({ username, bio, date, actions, loading, avatar }: {
+  username: string; bio: string; date: string; avatar?: string | null;
   actions: React.ReactNode; loading: boolean;
 }) {
   return (
     <div style={{ ...styles.card, opacity: loading ? 0.6 : 1 }} className="animate-fade-in">
-      <Avatar username={username} size={36} />
+      <Avatar username={username} avatar={avatar} size={36} />
       <div style={{ flex: 1, overflow: 'hidden' }}>
         <div style={styles.cardName}>{username}</div>
         {bio && <div style={styles.cardBio}>{bio}</div>}
@@ -273,10 +275,13 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'var(--bg)',
   },
   header: {
-    padding: '20px 32px',
+    padding: '0 32px',
+    height: 60,
     borderBottom: '1px solid var(--border)',
     background: 'var(--bg-1)',
     flexShrink: 0,
+    display: 'flex',
+    alignItems: 'center',
   },
   title: {
     fontFamily: 'var(--font-display)',
