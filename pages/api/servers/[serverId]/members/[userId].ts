@@ -27,9 +27,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (server.ownerId.equals(meId)) return true;
     const myMember = server.members.find((m: any) => m.userId.equals(meId));
     if (!myMember) return false;
-    return myMember.roles.some((roleId: string) => {
-      const role = server.roles.find((r: any) => r.id === roleId);
-      return role?.permissions?.[perm] || role?.permissions?.administrator;
+    const myRoleIds: string[] = myMember.roles || [];
+    return server.roles.some((role: any) => {
+      const applies = role.isDefault || myRoleIds.includes(role.id);
+      return applies && (role?.permissions?.[perm] || role?.permissions?.administrator);
     });
   }
 

@@ -30,9 +30,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (server.ownerId.equals(meId)) return true;
     const myMember = server.members.find((m: { userId: ObjectId }) => m.userId.equals(meId));
     if (!myMember) return false;
-    return (myMember as { roles: string[] }).roles.some((roleId: string) => {
-      const role = (server.roles as { id: string; permissions: { manageChannels?: boolean; administrator?: boolean } }[]).find(r => r.id === roleId);
-      return role?.permissions?.manageChannels || role?.permissions?.administrator;
+    const myRoleIds: string[] = (myMember as { roles: string[] }).roles;
+    return (server.roles as { id: string; isDefault?: boolean; permissions: { manageChannels?: boolean; administrator?: boolean } }[]).some(role => {
+      const applies = role.isDefault || myRoleIds.includes(role.id);
+      return applies && (role.permissions?.manageChannels || role.permissions?.administrator);
     });
   }
 

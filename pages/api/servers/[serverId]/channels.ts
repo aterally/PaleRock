@@ -5,13 +5,13 @@ import { verifyToken } from '@/lib/auth';
 import connectToDatabase from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 
-function hasManageChannels(server: { ownerId: ObjectId; members: { userId: ObjectId; roles: string[] }[]; roles: { id: string; permissions: { manageChannels?: boolean; administrator?: boolean } }[] }, meId: ObjectId) {
+function hasManageChannels(server: { ownerId: ObjectId; members: { userId: ObjectId; roles: string[] }[]; roles: { id: string; isDefault?: boolean; permissions: { manageChannels?: boolean; administrator?: boolean } }[] }, meId: ObjectId) {
   if (server.ownerId.equals(meId)) return true;
   const myMember = server.members.find(m => m.userId.equals(meId));
   if (!myMember) return false;
-  return myMember.roles.some(roleId => {
-    const role = server.roles.find(r => r.id === roleId);
-    return role?.permissions?.manageChannels || role?.permissions?.administrator;
+  return server.roles.some(role => {
+    const applies = role.isDefault || myMember.roles.includes(role.id);
+    return applies && (role.permissions?.manageChannels || role.permissions?.administrator);
   });
 }
 

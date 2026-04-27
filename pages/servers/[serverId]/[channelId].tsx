@@ -37,6 +37,7 @@ export interface ServerMember {
   roles: string[];
   joinedAt: string;
   bio: string;
+  mutedUntil: string | null;
 }
 
 export interface ServerData {
@@ -106,9 +107,10 @@ export default function ServerPage() {
   function hasPermission(perm: string) {
     if (isOwner) return true;
     if (!myMember || !server) return false;
-    return myMember.roles.some(roleId => {
-      const role = server.roles.find(r => r.id === roleId);
-      return role?.permissions?.[perm] || role?.permissions?.administrator;
+    // Check both assigned roles AND the @everyone role (isDefault)
+    return server.roles.some(role => {
+      const applies = role.isDefault || myMember.roles.includes(role.id);
+      return applies && (role.permissions?.[perm] || role.permissions?.administrator);
     });
   }
 

@@ -19,13 +19,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const server = await db.collection('servers').findOne({ _id: serverId });
   if (!server) return res.status(404).json({ error: 'Server not found' });
 
-  const isMember = server.members.some((m: { userId: ObjectId }) => m.userId.equals(meId));
-  if (!isMember) return res.status(403).json({ error: 'Not a member' });
+  const myMember = server.members.find((m: { userId: ObjectId }) => m.userId.equals(meId));
+  if (!myMember) return res.status(403).json({ error: 'Not a member' });
+
+  const isOwner = server.ownerId.equals(meId);
+
+  // Build effective permissions: check assigned roles + @everyone (isDefault role)
+  function hasPerm(perm: string): boolean {
+    if (isOwner) return true;
+    const myRoleIds: string[] = myMember.roles || [];
+    return server.roles.some((role: { id: string; isDefault: boolean; permissions: Record<string, boolean> }) => {
+      const applies = role.isDefault || myRoleIds.includes(role.id);
+      return applies && (role.permissions?.[perm] || role.permissions?.administrator);
+    });
+  }
 
   const channel = await db.collection('serverChannels').findOne({ _id: channelId, serverId });
   if (!channel) return res.status(404).json({ error: 'Channel not found' });
 
+  // viewChannels gate
+  if (!hasPerm('viewChannels')) return res.status(403).json({ error: 'Missing permission: viewChannels' });
+
   if (req.method === 'GET') {
+    // readMessageHistory gate
+    if (!hasPerm('readMessageHistory')) return res.status(403).json({ error: 'Missing permission: readMessageHistory' });
+
     const before = req.query.before ? new ObjectId(req.query.before as string) : null;
     const query: Record<string, unknown> = { channelId, serverId };
     if (before) query._id = { $lt: before };
@@ -46,6 +64,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'POST') {
+    // sendMessages gate
+    if (!hasPerm('sendMessages')) return res.status(403).json({ error: 'Missing permission: sendMessages' });
+
+    // mute gate — check mutedUntil on the member document
+    const mutedUntil = myMember.mutedUntil ? new Date(myMember.mutedUntil) : null;
+    if (mutedUntil && mutedUntil > new Date()) {
+      return res.status(403).json({ error: 'You are muted', mutedUntil: mutedUntil.toISOString() });
+    }
+
     const { content } = req.body;
     if (!content || content.trim().length === 0) return res.status(400).json({ error: 'Content required' });
     if (content.length > 2000) return res.status(400).json({ error: 'Message too long' });
@@ -67,3 +94,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   return res.status(405).json({ error: 'Method not allowed' });
 }
+

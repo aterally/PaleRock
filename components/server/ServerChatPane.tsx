@@ -21,14 +21,38 @@ interface Props {
 }
 
 export default function ServerChatPane({
-  server, channel, currentUser, hasPermission, showMembers, onToggleMembers
+  server, channel, currentUser, myMember, hasPermission, showMembers, onToggleMembers
 }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
+  const [now, setNow] = useState(() => Date.now());
   const bottomRef = useRef<HTMLDivElement>(null);
   const lastIdRef = useRef<string | null>(null);
   const canSend = hasPermission('sendMessages');
+
+  // Live countdown ticker
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const mutedUntilMs = myMember?.mutedUntil ? new Date(myMember.mutedUntil).getTime() : 0;
+  const isMuted = mutedUntilMs > now;
+  const muteSecondsLeft = isMuted ? Math.ceil((mutedUntilMs - now) / 1000) : 0;
+
+  function formatMuteTime(secs: number) {
+    if (secs >= 3600) {
+      const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60), s = secs % 60;
+      return `${h}h ${m}m ${s}s`;
+    }
+    if (secs >= 60) {
+      const m = Math.floor(secs / 60), s = secs % 60;
+      return `${m}m ${s}s`;
+    }
+    return `${secs}s`;
+  }
+
   const [profilePopup, setProfilePopup] = useState<{ userId: string; username: string; x: number; y: number } | null>(null);
 
   function openProfile(e: React.MouseEvent, authorId: string, authorName: string) {
@@ -81,7 +105,7 @@ export default function ServerChatPane({
 
   async function sendMessage() {
     const content = input.trim();
-    if (!content || !canSend) return;
+    if (!content || !canSend || isMuted) return;
     setInput('');
     const r = await fetch(`/api/servers/${server.id}/messages/${channel.id}`, {
       method: 'POST',
@@ -244,7 +268,12 @@ export default function ServerChatPane({
 
       {/* Input */}
       <div style={styles.inputArea}>
-        {canSend ? (
+        {isMuted ? (
+          <div style={{ ...styles.noPermission, color: 'var(--text-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+            You are muted — unmuted in <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text)', marginLeft: 2 }}>{formatMuteTime(muteSecondsLeft)}</span>
+          </div>
+        ) : canSend ? (
           <div style={styles.inputRow}>
             <input
               style={styles.input}

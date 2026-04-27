@@ -43,7 +43,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         ownerId: server.ownerId.toString(),
         roles: server.roles,
         categories: server.categories,
-        members: server.members.map((m: { userId: ObjectId; username: string; roles: string[]; joinedAt: Date; nickname: string | null }) => {
+        members: server.members.map((m: { userId: ObjectId; username: string; roles: string[]; joinedAt: Date; nickname: string | null; mutedUntil?: Date | null }) => {
           const user = userMap.get(m.userId.toString());
           return {
             userId: m.userId.toString(),
@@ -52,6 +52,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             roles: m.roles,
             joinedAt: m.joinedAt,
             bio: user?.bio || '',
+            mutedUntil: m.mutedUntil ? m.mutedUntil.toISOString() : null,
           };
         }),
         channels: channels.map(ch => ({

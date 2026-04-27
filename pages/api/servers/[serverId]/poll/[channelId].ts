@@ -20,8 +20,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const server = await db.collection('servers').findOne({ _id: serverId });
   if (!server) return res.status(404).json({ error: 'Server not found' });
-  const isMember = server.members.some((m: { userId: ObjectId }) => m.userId.equals(meId));
-  if (!isMember) return res.status(403).json({ error: 'Not a member' });
+
+  const myMember = server.members.find((m: { userId: ObjectId }) => m.userId.equals(meId));
+  if (!myMember) return res.status(403).json({ error: 'Not a member' });
+
+  const isOwner = server.ownerId.equals(meId);
+
+  function hasPerm(perm: string): boolean {
+    if (isOwner) return true;
+    const myRoleIds: string[] = myMember.roles || [];
+    return server.roles.some((role: { id: string; isDefault: boolean; permissions: Record<string, boolean> }) => {
+      const applies = role.isDefault || myRoleIds.includes(role.id);
+      return applies && (role.permissions?.[perm] || role.permissions?.administrator);
+    });
+  }
+
+  if (!hasPerm('viewChannels')) return res.status(403).json({ messages: [] });
+  if (!hasPerm('readMessageHistory')) return res.status(403).json({ messages: [] });
 
   const after = req.query.after ? new ObjectId(req.query.after as string) : null;
   const query: Record<string, unknown> = { channelId, serverId };
