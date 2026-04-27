@@ -34,7 +34,7 @@ export default function Sidebar({
   return (
     <div style={styles.outerWrapper}>
       {/* Server rail */}
-      <div style={styles.serverRail}>
+      <div data-server-rail="1" style={styles.serverRail}>
         {/* Home button */}
         <button
           style={{

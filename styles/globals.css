@@ -202,3 +202,140 @@ select option {
   --success-dim: rgba(51,255,153,0.08);
   --bg-4: #222222;
 }
+
+/* ============================================================
+   RESPONSIVE / iPad & Mobile Support
+   ============================================================ */
+
+/* iPad landscape (1024px) — hide member list by default, shrink sidebar */
+@media (max-width: 1024px) {
+  :root {
+    --sidebar-width: 220px;
+  }
+}
+
+/* iPad portrait (768px) — collapse server rail + sidebar into a narrower layout */
+@media (max-width: 820px) {
+  :root {
+    --sidebar-width: 200px;
+  }
+
+  /* Hide member list pane on iPad portrait to save space */
+  [data-member-list] {
+    display: none !important;
+  }
+
+  /* Tighten server rail */
+  [data-server-rail] {
+    width: 44px !important;
+    min-width: 44px !important;
+  }
+}
+
+/* Mobile (<640px) — full-screen panels, slide-out nav */
+@media (max-width: 640px) {
+  :root {
+    --sidebar-width: 100vw;
+  }
+
+  /* Stack the whole app vertically */
+  body > #__next > div,
+  div[style*="height: 100vh"][style*="display: flex"] {
+    flex-direction: column !important;
+  }
+
+  /* Server rail becomes a horizontal bottom bar */
+  [data-server-rail],
+  div[style*="width: 56px"][style*="flexDirection: column"] {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 52px !important;
+    flex-direction: row !important;
+    border-right: none !important;
+    border-top: 1px solid var(--border) !important;
+    order: 3 !important;
+    padding: 0 8px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    justify-content: flex-start !important;
+  }
+
+  /* Sidebar takes full width when visible */
+  aside[style*="var(--sidebar-width)"],
+  div[style*="var(--sidebar-width)"] {
+    width: 100vw !important;
+    min-width: 0 !important;
+    max-width: 100vw !important;
+  }
+
+  /* Main pane takes full width */
+  main {
+    width: 100vw !important;
+    min-width: 0 !important;
+  }
+
+  /* Hide member list on mobile */
+  [data-member-list] {
+    display: none !important;
+  }
+
+  /* Context menus — prevent them going off-screen */
+  [style*="position: fixed"][style*="minWidth: 180"] {
+    max-width: calc(100vw - 16px) !important;
+  }
+
+  /* Profile popups — center on mobile */
+  [data-profile],
+  [style*="position: fixed"][style*="width: 256"] {
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+  }
+
+  /* Modals — full width on mobile */
+  [style*="minWidth: 340"],
+  [style*="minWidth: 380"] {
+    min-width: 0 !important;
+    width: calc(100vw - 32px) !important;
+    max-width: calc(100vw - 32px) !important;
+  }
+
+  /* Pixel editor — scroll on small screens */
+  [style*="max-width: 600"] {
+    max-width: calc(100vw - 16px) !important;
+    overflow-x: auto !important;
+  }
+
+  /* Chat input area — ensure not hidden behind mobile keyboard */
+  [style*="borderTop: '1px solid var(--border)'"][style*="padding: '12px"] {
+    padding-bottom: env(safe-area-inset-bottom, 12px) !important;
+  }
+}
+
+/* Touch improvements — larger tap targets */
+@media (hover: none) and (pointer: coarse) {
+  button, [role="button"] {
+    min-height: 36px;
+    min-width: 36px;
+  }
+
+  /* Smooth scrolling for touch */
+  [style*="overflowY: auto"],
+  [style*="overflow-y: auto"] {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  /* Prevent double-tap zoom on buttons */
+  button {
+    touch-action: manipulation;
+  }
+}
+
+/* Safe area insets for notched devices (iPhone, some iPads) */
+@supports (padding: env(safe-area-inset-bottom)) {
+  @media (max-width: 820px) {
+    [style*="borderTop: '1px solid var(--border)'"][style*="padding: '10px 8px'"] {
+      padding-bottom: calc(10px + env(safe-area-inset-bottom)) !important;
+    }
+  }
+}

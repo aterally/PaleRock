@@ -206,10 +206,15 @@ export default function ServerChatPane({
                       >{group.author}</span>
                       {(() => {
                         const m = server.members.find(m => m.userId === group.authorId);
-                        const isMemberMuted = m?.mutedUntil && new Date(m.mutedUntil).getTime() > now;
-                        return isMemberMuted ? (
-                          <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(237,66,69,0.12)', color: '#ed4245', border: '1px solid rgba(237,66,69,0.3)', fontFamily: 'var(--font-display)', fontWeight: 700, letterSpacing: '0.06em', flexShrink: 0 }}>MUTED</span>
-                        ) : null;
+                        const mutedMs = m?.mutedUntil ? new Date(m.mutedUntil).getTime() : 0;
+                        const isMemberMuted = mutedMs > now;
+                        if (!isMemberMuted) return null;
+                        const msLeft = mutedMs - now;
+                        const totalMins = Math.ceil(msLeft / 60000);
+                        const durationLabel = totalMins < 60 ? `${totalMins}m` : totalMins < 1440 ? `${Math.ceil(totalMins / 60)}h` : `${Math.ceil(totalMins / 1440)}d`;
+                        return (
+                          <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(237,66,69,0.12)', color: '#ed4245', border: '1px solid rgba(237,66,69,0.3)', fontFamily: 'var(--font-display)', fontWeight: 700, letterSpacing: '0.06em', flexShrink: 0 }}>MUTED {durationLabel}</span>
+                        );
                       })()}
                       <span style={styles.timestamp}>
                         {new Date(group.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -233,8 +238,14 @@ export default function ServerChatPane({
         if (!member) return null;
         const hue = member.username.split('').reduce((a: number, c: string) => a + c.charCodeAt(0), 0) % 360;
         const profileRoles = server.roles.filter(r => !r.isDefault && member.roles.includes(r.id));
-        const isMuted = member.mutedUntil && new Date(member.mutedUntil).getTime() > now;
-        const avatarPixels = member.avatar ? JSON.parse(member.avatar) : null;
+        const mutedMs = member.mutedUntil ? new Date(member.mutedUntil).getTime() : 0;
+        const isMuted = mutedMs > now;
+        const mutedTimeLabel = isMuted ? (() => {
+          const totalMins = Math.ceil((mutedMs - now) / 60000);
+          if (totalMins < 60) return `MUTED ${totalMins}m`;
+          if (totalMins < 1440) return `MUTED ${Math.ceil(totalMins / 60)}h`;
+          return `MUTED ${Math.ceil(totalMins / 1440)}d`;
+        })() : null;
         return (
           <div
             style={{ position: 'fixed', top: profilePopup.y, left: profilePopup.x, width: 256, background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden', zIndex: 1000, boxShadow: '0 12px 40px rgba(0,0,0,0.6)' }}
@@ -243,28 +254,11 @@ export default function ServerChatPane({
             <div style={{ height: 56, background: `hsl(${hue},20%,14%)` }} />
             <div style={{ padding: '0 16px 16px' }}>
               <div style={{ marginTop: -24, marginBottom: 8 }}>
-                {avatarPixels ? (
-                  <canvas
-                    ref={el => {
-                      if (!el) return;
-                      const ctx = el.getContext('2d')!;
-                      for (let r = 0; r < 16; r++) for (let c = 0; c < 16; c++) {
-                        ctx.fillStyle = avatarPixels[r][c];
-                        ctx.fillRect(c * 3, r * 3, 3, 3);
-                      }
-                    }}
-                    width={48} height={48}
-                    style={{ borderRadius: 10, border: '3px solid var(--bg-2)', imageRendering: 'pixelated', display: 'block' }}
-                  />
-                ) : (
-                  <div style={{ width: 48, height: 48, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, border: '3px solid var(--bg-2)', userSelect: 'none', background: `hsl(${hue},10%,20%)`, color: `hsl(${hue},20%,80%)` }}>
-                    {member.username.slice(0,2).toUpperCase()}
-                  </div>
-                )}
+                <Avatar username={member.username} avatar={member.avatar} size={48} />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, color: 'var(--text)' }}>{member.nickname || member.username}</div>
-                {isMuted && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(237,66,69,0.12)', color: '#ed4245', border: '1px solid rgba(237,66,69,0.3)', fontFamily: 'var(--font-display)', fontWeight: 700 }}>MUTED</span>}
+                {mutedTimeLabel && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(237,66,69,0.12)', color: '#ed4245', border: '1px solid rgba(237,66,69,0.3)', fontFamily: 'var(--font-display)', fontWeight: 700 }}>{mutedTimeLabel}</span>}
               </div>
               {member.nickname && <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 1, fontFamily: 'var(--font-mono)' }}>{member.username}</div>}
               {member.pronouns && <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2, fontStyle: 'italic' }}>{member.pronouns}</div>}

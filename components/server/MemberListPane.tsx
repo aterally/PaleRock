@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { ServerData, ServerRole } from '@/pages/servers/[serverId]/[channelId]';
+import { Avatar } from '@/components/Sidebar';
 
 interface Props {
   server: ServerData;
@@ -106,7 +107,7 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
   const profileRoles = profileMember ? server.roles.filter(r => !r.isDefault && profileMember.roles.includes(r.id)) : [];
 
   return (
-    <aside style={st.pane} onClick={() => { setCtxMenu(null); setProfile(null); }}>
+    <aside data-member-list="1" style={st.pane} onClick={() => { setCtxMenu(null); setProfile(null); }}>
       <div style={st.header}>
         <span style={st.title}>MEMBERS — {server.members.length}</span>
       </div>
@@ -117,9 +118,15 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
           const isMemberOwner = member.userId === server.ownerId;
           const highestRole = getHighestRole(member.roles);
           const nameColor = highestRole?.color || 'var(--text-2)';
-          const hue = member.username.split('').reduce((a: number, c: string) => a + c.charCodeAt(0), 0) % 360;
           const isMuted = member.mutedUntil && new Date(member.mutedUntil).getTime() > Date.now();
-          const avatarPixels = member.avatar ? (() => { try { return JSON.parse(member.avatar!); } catch { return null; } })() : null;
+
+          function mutedLabel(mutedUntil: string) {
+            const msLeft = new Date(mutedUntil).getTime() - Date.now();
+            const totalMins = Math.ceil(msLeft / 60000);
+            if (totalMins < 60) return `muted ${totalMins}m`;
+            if (totalMins < 1440) return `muted ${Math.ceil(totalMins / 60)}h`;
+            return `muted ${Math.ceil(totalMins / 1440)}d`;
+          }
 
           return (
             <div
@@ -129,24 +136,11 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
               onContextMenu={(e) => openCtx(e, member)}
             >
               <div
-                style={{ ...st.avatar, background: `hsl(${hue},10%,20%)`, border: `1px solid hsl(${hue},10%,30%)`, color: `hsl(${hue},20%,80%)`, cursor: 'pointer', overflow: 'hidden', padding: 0 }}
+                style={{ cursor: 'pointer', flexShrink: 0 }}
                 onClick={(e) => openProfile(e, member)}
                 title="View profile"
               >
-                {avatarPixels ? (
-                  <canvas
-                    ref={el => {
-                      if (!el) return;
-                      const ctx = el.getContext('2d')!;
-                      for (let r = 0; r < 16; r++) for (let c = 0; c < 16; c++) {
-                        ctx.fillStyle = avatarPixels[r][c];
-                        ctx.fillRect(c * 2, r * 2, 2, 2);
-                      }
-                    }}
-                    width={34} height={34}
-                    style={{ width: '100%', height: '100%', imageRendering: 'pixelated', display: 'block' }}
-                  />
-                ) : member.username.slice(0, 2).toUpperCase()}
+                <Avatar username={member.username} avatar={member.avatar} size={34} />
               </div>
 
               <div style={st.memberInfo}>
@@ -232,7 +226,13 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
       {profile && profileMember && (() => {
         const hue = profileMember.username.split('').reduce((a:number,c:string)=>a+c.charCodeAt(0),0)%360;
         const isMuted = profileMember.mutedUntil && new Date(profileMember.mutedUntil).getTime() > Date.now();
-        const avatarPixels = profileMember.avatar ? (() => { try { return JSON.parse(profileMember.avatar!); } catch { return null; } })() : null;
+        const mutedTimeLabel = isMuted ? (() => {
+          const msLeft = new Date(profileMember.mutedUntil!).getTime() - Date.now();
+          const totalMins = Math.ceil(msLeft / 60000);
+          if (totalMins < 60) return `MUTED ${totalMins}m`;
+          if (totalMins < 1440) return `MUTED ${Math.ceil(totalMins / 60)}h`;
+          return `MUTED ${Math.ceil(totalMins / 1440)}d`;
+        })() : null;
         return (
           <div
             data-profile="1"
@@ -242,32 +242,11 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
             <div style={{ ...st.profileBanner, background: `hsl(${hue},20%,14%)` }} />
             <div style={st.profileBody}>
               <div style={st.profileAvatarWrap}>
-                {avatarPixels ? (
-                  <canvas
-                    ref={el => {
-                      if (!el) return;
-                      const ctx = el.getContext('2d')!;
-                      for (let r = 0; r < 16; r++) for (let c = 0; c < 16; c++) {
-                        ctx.fillStyle = avatarPixels[r][c];
-                        ctx.fillRect(c * 3, r * 3, 3, 3);
-                      }
-                    }}
-                    width={48} height={48}
-                    style={{ borderRadius: 10, border: '3px solid var(--bg-2)', imageRendering: 'pixelated', display: 'block' }}
-                  />
-                ) : (
-                  <div style={{
-                    ...st.profileAvatar,
-                    background: `hsl(${hue},10%,20%)`,
-                    color: `hsl(${hue},20%,80%)`,
-                  }}>
-                    {profileMember.username.slice(0,2).toUpperCase()}
-                  </div>
-                )}
+                <Avatar username={profileMember.username} avatar={profileMember.avatar} size={48} />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 <div style={st.profileName}>{profileMember.nickname || profileMember.username}</div>
-                {isMuted && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(237,66,69,0.12)', color: '#ed4245', border: '1px solid rgba(237,66,69,0.3)', fontFamily: 'var(--font-display)', fontWeight: 700 }}>MUTED</span>}
+                {mutedTimeLabel && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(237,66,69,0.12)', color: '#ed4245', border: '1px solid rgba(237,66,69,0.3)', fontFamily: 'var(--font-display)', fontWeight: 700 }}>{mutedTimeLabel}</span>}
               </div>
               {profileMember.nickname && <div style={st.profileUsername}>{profileMember.username}</div>}
               {profileMember.pronouns && <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2, fontStyle: 'italic' }}>{profileMember.pronouns}</div>}
