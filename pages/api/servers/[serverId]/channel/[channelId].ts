@@ -42,6 +42,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (req.body.name) updates.name = req.body.name.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 50);
     if (req.body.topic !== undefined) updates.topic = req.body.topic.slice(0, 200);
     if (req.body.categoryId !== undefined) updates.categoryId = req.body.categoryId;
+    if (req.body.position !== undefined) updates.position = req.body.position;
     await db.collection('serverChannels').updateOne({ _id: channelId, serverId }, { $set: updates });
     return res.status(200).json({ success: true });
   }

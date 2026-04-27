@@ -52,6 +52,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       manageServer: false,
       kickMembers: false,
       banMembers: false,
+      muteMembers: false,
       createInvites: true,
       administrator: false,
     };

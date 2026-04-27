@@ -19,58 +19,67 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const server = await db.collection('servers').findOne({ _id: serverId });
   if (!server) return res.status(404).json({ error: 'Server not found' });
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const s = server as any;
-  const srv = server as unknown as { ownerId: ObjectId; members: { userId: ObjectId; roles: string[] }[]; roles: { id: string; permissions: Record<string, boolean>; isDefault: boolean; position: number }[]; categories: { id: string; name: string; position: number }[]; name: string; _id: ObjectId };
 
-  const isMember = server.members.some((m: { userId: ObjectId }) => m.userId.equals(meId));
+  const isMember = server.members.some((m: any) => m.userId.equals(meId));
   if (!isMember) return res.status(403).json({ error: 'Not a member' });
 
   function hasPermission(perm: string) {
     if (server.ownerId.equals(meId)) return true;
-    const myMember = server.members.find((m: { userId: ObjectId }) => m.userId.equals(meId));
+    const myMember = server.members.find((m: any) => m.userId.equals(meId));
     if (!myMember) return false;
-    return (myMember as { roles: string[] }).roles.some((roleId: string) => {
-      const role = (server.roles as { id: string; permissions: Record<string, boolean> }[]).find(r => r.id === roleId);
+    return myMember.roles.some((roleId: string) => {
+      const role = server.roles.find((r: any) => r.id === roleId);
       return role?.permissions?.[perm] || role?.permissions?.administrator;
     });
   }
 
-  // PATCH - assign/remove roles
   if (req.method === 'PATCH') {
-    if (!hasPermission('manageRoles')) return res.status(403).json({ error: 'Missing permissions' });
+    const { addRoles, removeRoles, mute, muteDuration } = req.body;
 
-    const { addRoles = [], removeRoles = [] } = req.body;
-    const memberIndex = server.members.findIndex((m: { userId: ObjectId }) => m.userId.equals(targetUserId));
-    if (memberIndex === -1) return res.status(404).json({ error: 'Member not found' });
-
-    let currentRoles = (server.members[memberIndex] as { roles: string[] }).roles as string[];
-
-    for (const roleId of removeRoles) {
-      const role = (server.roles as { id: string; isDefault: boolean }[]).find(r => r.id === roleId);
-      if (!role?.isDefault) currentRoles = currentRoles.filter((r: string) => r !== roleId);
+    if (addRoles !== undefined || removeRoles !== undefined) {
+      if (!hasPermission('manageRoles')) return res.status(403).json({ error: 'Missing permissions' });
+      const memberIndex = server.members.findIndex((m: any) => m.userId.equals(targetUserId));
+      if (memberIndex === -1) return res.status(404).json({ error: 'Member not found' });
+      let currentRoles = server.members[memberIndex].roles as string[];
+      for (const roleId of (removeRoles || [])) {
+        const role = server.roles.find((r: any) => r.id === roleId);
+        if (!role?.isDefault) currentRoles = currentRoles.filter((r: string) => r !== roleId);
+      }
+      for (const roleId of (addRoles || [])) {
+        if (!currentRoles.includes(roleId)) currentRoles.push(roleId);
+      }
+      await db.collection('servers').updateOne({ _id: serverId }, { $set: { [`members.${memberIndex}.roles`]: currentRoles } });
+      return res.status(200).json({ success: true });
     }
-    for (const roleId of addRoles) {
-      if (!currentRoles.includes(roleId)) currentRoles.push(roleId);
+
+    if (mute !== undefined) {
+      if (!hasPermission('muteMembers')) return res.status(403).json({ error: 'Missing permissions' });
+      if (targetUserId.equals(meId)) return res.status(400).json({ error: 'Cannot mute yourself' });
+      if (targetUserId.equals(server.ownerId)) return res.status(400).json({ error: 'Cannot mute the owner' });
+      const memberIndex = server.members.findIndex((m: any) => m.userId.equals(targetUserId));
+      if (memberIndex === -1) return res.status(404).json({ error: 'Member not found' });
+      const mutedUntil = (mute && muteDuration > 0) ? new Date(Date.now() + muteDuration * 60 * 1000) : null;
+      await db.collection('servers').updateOne({ _id: serverId }, { $set: { [`members.${memberIndex}.mutedUntil`]: mutedUntil } });
+      return res.status(200).json({ success: true });
     }
 
-    await db.collection('servers').updateOne(
-      { _id: serverId },
-      { $set: { [`members.${memberIndex}.roles`]: currentRoles } }
-    );
-    return res.status(200).json({ success: true });
+    return res.status(400).json({ error: 'No valid action specified' });
   }
 
-  // DELETE - kick member
   if (req.method === 'DELETE') {
+    const { action } = req.query;
+    if (action === 'ban') {
+      if (!hasPermission('banMembers')) return res.status(403).json({ error: 'Missing permissions' });
+      if (targetUserId.equals(meId)) return res.status(400).json({ error: 'Cannot ban yourself' });
+      if (targetUserId.equals(server.ownerId)) return res.status(400).json({ error: 'Cannot ban the owner' });
+      await db.collection('servers').updateOne({ _id: serverId }, { $pull: { members: { userId: targetUserId } } as any });
+      await db.collection('servers').updateOne({ _id: serverId }, { $addToSet: { bannedUsers: targetUserId } as any });
+      return res.status(200).json({ success: true });
+    }
     if (!hasPermission('kickMembers')) return res.status(403).json({ error: 'Missing permissions' });
     if (targetUserId.equals(meId)) return res.status(400).json({ error: 'Cannot kick yourself' });
     if (targetUserId.equals(server.ownerId)) return res.status(400).json({ error: 'Cannot kick the owner' });
-
-    await db.collection('servers').updateOne(
-      { _id: serverId },
-      { $pull: { members: { userId: targetUserId } } as Parameters<typeof db.collection>['0'] extends string ? never : never }
-    );
+    await db.collection('servers').updateOne({ _id: serverId }, { $pull: { members: { userId: targetUserId } } as any });
     return res.status(200).json({ success: true });
   }
 

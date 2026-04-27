@@ -26,20 +26,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const isMember = server.members.some((m: { userId: ObjectId }) => m.userId.equals(meId));
   if (!isMember) return res.status(403).json({ error: 'Not a member' });
 
-  // POST - create invite
-  if (req.method === 'POST') {
-    // Check create invite permission
-    const myMember = server.members.find((m: { userId: ObjectId }) => m.userId.equals(meId));
-    const hasPermission = server.ownerId.equals(meId) || (myMember as { roles: string[] })?.roles.some((roleId: string) => {
-      const role = (server.roles as { id: string; permissions: { createInvites?: boolean; administrator?: boolean } }[]).find(r => r.id === roleId);
-      return role?.permissions?.createInvites || role?.permissions?.administrator;
+  function hasPermission(perm: string) {
+    if (server.ownerId.equals(meId)) return true;
+    const myMember = server.members.find((m: any) => m.userId.equals(meId));
+    if (!myMember) return false;
+    return myMember.roles.some((roleId: string) => {
+      const role = server.roles.find((r: any) => r.id === roleId);
+      return role?.permissions?.[perm] || role?.permissions?.administrator;
     });
-    if (!hasPermission) return res.status(403).json({ error: 'Missing permissions' });
+  }
 
-    const { maxUses = 0, expiresIn = 24 } = req.body; // expiresIn in hours, 0 = never
-
+  if (req.method === 'POST') {
+    if (!hasPermission('createInvites')) return res.status(403).json({ error: 'Missing permissions' });
+    const { maxUses = 0, expiresIn = 24 } = req.body;
     let code = generateCode();
-    // ensure uniqueness
     let attempts = 0;
     while (attempts < 10) {
       const existing = await db.collection('invites').findOne({ code });
@@ -47,41 +47,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       code = generateCode();
       attempts++;
     }
-
     const invite: Record<string, unknown> = {
-      code,
-      serverId,
-      serverName: server.name,
-      createdBy: meId,
-      createdAt: new Date(),
-      uses: 0,
-      maxUses: maxUses || 0, // 0 = unlimited
+      code, serverId, serverName: server.name, createdBy: meId,
+      createdAt: new Date(), uses: 0, maxUses: maxUses || 0,
     };
-
     if (expiresIn && expiresIn > 0) {
       invite.expiresAt = new Date(Date.now() + expiresIn * 60 * 60 * 1000);
     }
-
     await db.collection('invites').insertOne(invite);
-
     return res.status(201).json({ code, url: `${process.env.NEXT_PUBLIC_BASE_URL || ''}/invite/${code}` });
   }
 
-  // GET - list invites for server
   if (req.method === 'GET') {
-    const canManage = server.ownerId.equals(meId);
-    if (!canManage) return res.status(403).json({ error: 'Missing permissions' });
-
+    if (!hasPermission('manageServer') && !server.ownerId.equals(meId)) return res.status(403).json({ error: 'Missing permissions' });
     const invites = await db.collection('invites').find({ serverId }).sort({ createdAt: -1 }).toArray();
     return res.status(200).json({
       invites: invites.map(i => ({
-        code: i.code,
-        uses: i.uses,
-        maxUses: i.maxUses,
-        expiresAt: i.expiresAt,
-        createdAt: i.createdAt,
+        code: i.code, uses: i.uses, maxUses: i.maxUses,
+        expiresAt: i.expiresAt, createdAt: i.createdAt,
       }))
     });
+  }
+
+  // DELETE - delete an invite by code
+  if (req.method === 'DELETE') {
+    if (!server.ownerId.equals(meId) && !hasPermission('manageServer')) return res.status(403).json({ error: 'Missing permissions' });
+    const { code } = req.query;
+    if (!code) return res.status(400).json({ error: 'code required' });
+    const result = await db.collection('invites').deleteOne({ code, serverId });
+    if (result.deletedCount === 0) return res.status(404).json({ error: 'Invite not found' });
+    return res.status(200).json({ success: true });
   }
 
   return res.status(405).json({ error: 'Method not allowed' });

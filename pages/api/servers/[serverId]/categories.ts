@@ -63,10 +63,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const catIndex = server.categories.findIndex((c: { id: string }) => c.id === categoryId);
     if (catIndex === -1) return res.status(404).json({ error: 'Category not found' });
 
-    if (name) {
-      await db.collection('servers').updateOne({ _id: serverId }, {
-        $set: { [`categories.${catIndex}.name`]: name.trim().toUpperCase().slice(0, 50) }
-      });
+    const catUpdates: Record<string, unknown> = {};
+    if (name) catUpdates[`categories.${catIndex}.name`] = name.trim().toUpperCase().slice(0, 50);
+    if (req.body.position !== undefined) catUpdates[`categories.${catIndex}.position`] = req.body.position;
+    if (Object.keys(catUpdates).length > 0) {
+      await db.collection('servers').updateOne({ _id: serverId }, { $set: catUpdates });
     }
 
     return res.status(200).json({ success: true });
