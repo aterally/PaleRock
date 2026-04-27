@@ -29,6 +29,15 @@ export default function ServerChatPane({
   const bottomRef = useRef<HTMLDivElement>(null);
   const lastIdRef = useRef<string | null>(null);
   const canSend = hasPermission('sendMessages');
+  const [profilePopup, setProfilePopup] = useState<{ userId: string; username: string; x: number; y: number } | null>(null);
+
+  function openProfile(e: React.MouseEvent, authorId: string, authorName: string) {
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const x = Math.min(rect.right + 8, window.innerWidth - 268);
+    const y = Math.max(8, Math.min(rect.top, window.innerHeight - 300));
+    setProfilePopup({ userId: authorId, username: authorName, x, y });
+  }
 
   const fetchMessages = useCallback(async () => {
     const r = await fetch(`/api/servers/${server.id}/messages/${channel.id}`);
@@ -114,7 +123,7 @@ export default function ServerChatPane({
   const groups = groupMessages(messages);
 
   return (
-    <div style={styles.pane}>
+    <div style={styles.pane} onClick={() => setProfilePopup(null)}>
       {/* Channel header */}
       <div style={styles.header}>
         <div style={styles.channelInfo}>
@@ -157,17 +166,26 @@ export default function ServerChatPane({
               const hue = group.author.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
               return (
                 <div key={i} style={styles.messageGroup}>
-                  <div style={{
-                    ...styles.avatar,
-                    background: `hsl(${hue}, 10%, 20%)`,
-                    border: `1px solid hsl(${hue}, 10%, 30%)`,
-                    color: `hsl(${hue}, 20%, 80%)`,
-                  }}>
+                  <div
+                    style={{
+                      ...styles.avatar,
+                      background: `hsl(${hue}, 10%, 20%)`,
+                      border: `1px solid hsl(${hue}, 10%, 30%)`,
+                      color: `hsl(${hue}, 20%, 80%)`,
+                      cursor: 'pointer',
+                    }}
+                    onClick={(e) => openProfile(e, group.authorId, group.author)}
+                    title="View profile"
+                  >
                     {initials}
                   </div>
                   <div style={styles.groupContent}>
                     <div style={styles.groupHeader}>
-                      <span style={{ ...styles.authorName, color }}>{group.author}</span>
+                      <span
+                        style={{ ...styles.authorName, color, cursor: 'pointer' }}
+                        onClick={(e) => openProfile(e, group.authorId, group.author)}
+                        title="View profile"
+                      >{group.author}</span>
                       <span style={styles.timestamp}>
                         {new Date(group.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
@@ -183,6 +201,46 @@ export default function ServerChatPane({
           </>
         )}
       </div>
+
+      {/* Profile popup */}
+      {profilePopup && (() => {
+        const member = server.members.find(m => m.userId === profilePopup.userId);
+        if (!member) return null;
+        const hue = member.username.split('').reduce((a: number, c: string) => a + c.charCodeAt(0), 0) % 360;
+        const profileRoles = server.roles.filter(r => !r.isDefault && member.roles.includes(r.id));
+        return (
+          <div
+            style={{ position: 'fixed', top: profilePopup.y, left: profilePopup.x, width: 256, background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden', zIndex: 1000, boxShadow: '0 12px 40px rgba(0,0,0,0.6)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ height: 56, background: `hsl(${hue},20%,14%)` }} />
+            <div style={{ padding: '0 16px 16px' }}>
+              <div style={{ marginTop: -24, marginBottom: 8 }}>
+                <div style={{ width: 48, height: 48, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, border: '3px solid var(--bg-2)', userSelect: 'none', background: `hsl(${hue},10%,20%)`, color: `hsl(${hue},20%,80%)` }}>
+                  {member.username.slice(0,2).toUpperCase()}
+                </div>
+              </div>
+              <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, color: 'var(--text)' }}>{member.nickname || member.username}</div>
+              {member.nickname && <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 1, fontFamily: 'var(--font-mono)' }}>{member.username}</div>}
+              {member.bio && <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 8, lineHeight: 1.5 }}>{member.bio}</div>}
+              {profileRoles.length > 0 && (
+                <div style={{ marginTop: 10 }}>
+                  <div style={{ fontSize: 9, letterSpacing: '0.12em', color: 'var(--text-3)', fontFamily: 'var(--font-display)', fontWeight: 700 }}>ROLES</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+                    {profileRoles.map(r => (
+                      <span key={r.id} style={{ fontSize: 9, padding: '1px 5px', border: `1px solid ${r.color}55`, borderRadius: 2, color: r.color }}>{r.name}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div style={{ marginTop: 10 }}>
+                <div style={{ fontSize: 9, letterSpacing: '0.12em', color: 'var(--text-3)', fontFamily: 'var(--font-display)', fontWeight: 700 }}>JOINED SERVER</div>
+                <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2 }}>{new Date(member.joinedAt).toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Input */}
       <div style={styles.inputArea}>
@@ -287,7 +345,7 @@ const styles: Record<string, React.CSSProperties> = {
   messageArea: {
     flex: 1,
     overflowY: 'auto',
-    padding: '16px 16px 0',
+    padding: '20px 24px 0',
     display: 'flex',
     flexDirection: 'column',
   },
@@ -334,20 +392,20 @@ const styles: Record<string, React.CSSProperties> = {
   },
   messageGroup: {
     display: 'flex',
-    gap: 12,
-    marginBottom: 16,
+    gap: 14,
+    marginBottom: 18,
     alignItems: 'flex-start',
   },
   avatar: {
-    width: 34,
-    height: 34,
+    width: 38,
+    height: 38,
     borderRadius: 'var(--radius)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     fontFamily: 'var(--font-display)',
     fontWeight: 800,
-    fontSize: 13,
+    fontSize: 14,
     flexShrink: 0,
     letterSpacing: 1,
     userSelect: 'none',
@@ -366,7 +424,7 @@ const styles: Record<string, React.CSSProperties> = {
   authorName: {
     fontFamily: 'var(--font-display)',
     fontWeight: 700,
-    fontSize: 13,
+    fontSize: 14,
     letterSpacing: '0.02em',
   },
   timestamp: {
@@ -375,9 +433,9 @@ const styles: Record<string, React.CSSProperties> = {
     letterSpacing: '0.04em',
   },
   messageText: {
-    fontSize: 13,
+    fontSize: 14,
     color: 'var(--text-2)',
-    lineHeight: 1.5,
+    lineHeight: 1.6,
     wordBreak: 'break-word',
     marginBottom: 2,
   },

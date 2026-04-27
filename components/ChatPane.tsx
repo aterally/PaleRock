@@ -124,9 +124,18 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
   }
 
   const otherUser = channel?.otherUser;
+  const [dmProfile, setDmProfile] = useState<{ senderId: string; senderUsername: string; x: number; y: number } | null>(null);
+
+  function handleProfileClick(e: React.MouseEvent, senderId: string, senderUsername: string) {
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const x = Math.max(8, Math.min(rect.left, window.innerWidth - 268));
+    const y = Math.max(8, Math.min(rect.bottom + 8, window.innerHeight - 200));
+    setDmProfile({ senderId, senderUsername, x, y });
+  }
 
   return (
-    <div style={s.pane}>
+    <div style={s.pane} onClick={() => setDmProfile(null)}>
       {/* Header */}
       <div style={s.header}>
         {otherUser && <Avatar username={otherUser.username} size={28} />}
@@ -156,7 +165,7 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
               <p style={s.emptyHint}>Beginning of your conversation</p>
             </div>
           ) : (
-            <MessageList messages={messages} currentUserId={currentUser.id} />
+            <MessageList messages={messages} currentUserId={currentUser.id} onProfileClick={handleProfileClick} />
           )}
           <div ref={bottomRef} />
         </div>
@@ -183,11 +192,29 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
             : <IconSend />}
         </button>
       </div>
+      {/* DM Profile popup */}
+      {dmProfile && (
+        <div
+          style={{ position: 'fixed', top: dmProfile.y, left: dmProfile.x, width: 240, background: '#111', border: '1px solid #1e1e1e', borderRadius: 10, overflow: 'hidden', zIndex: 1000, boxShadow: '0 12px 40px rgba(0,0,0,0.8)' }}
+          onClick={e => e.stopPropagation()}
+        >
+          <div style={{ height: 48, background: `hsl(${dmProfile.senderUsername.split('').reduce((a:number,c:string)=>a+c.charCodeAt(0),0)%360},15%,12%)` }} />
+          <div style={{ padding: '0 16px 16px' }}>
+            <div style={{ marginTop: -22, marginBottom: 8 }}>
+              <Avatar username={dmProfile.senderUsername} size={44} />
+            </div>
+            <div style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontWeight: 600, fontSize: 16, color: '#e0e0e0' }}>{dmProfile.senderUsername}</div>
+            {otherUser?.bio && dmProfile.senderId !== currentUser.id && (
+              <div style={{ fontSize: 12, color: '#555', marginTop: 6, lineHeight: 1.5, fontFamily: "'Inter', system-ui, sans-serif" }}>{otherUser.bio}</div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function MessageList({ messages, currentUserId }: { messages: Message[]; currentUserId: string }) {
+function MessageList({ messages, currentUserId, onProfileClick }: { messages: Message[]; currentUserId: string; onProfileClick?: (e: React.MouseEvent, senderId: string, senderUsername: string) => void; }) {
   const byDate: { date: string; messages: Message[] }[] = [];
   messages.forEach(msg => {
     const d = new Date(msg.createdAt).toDateString();
@@ -205,14 +232,14 @@ function MessageList({ messages, currentUserId }: { messages: Message[]; current
             <span style={s.dateLabel}>{formatDate(group.date)}</span>
             <div style={s.dateLine} />
           </div>
-          {renderClusters(group.messages, currentUserId)}
+          {renderClusters(group.messages, currentUserId, onProfileClick)}
         </div>
       ))}
     </>
   );
 }
 
-function renderClusters(messages: Message[], currentUserId: string) {
+function renderClusters(messages: Message[], currentUserId: string, onProfileClick?: (e: React.MouseEvent, senderId: string, senderUsername: string) => void) {
   const nodes: React.ReactNode[] = [];
   let i = 0;
 
@@ -252,8 +279,15 @@ function renderClusters(messages: Message[], currentUserId: string) {
             gap: 6,
             marginBottom: 3,
           }}>
-            {!isMe && <Avatar username={msg.senderUsername} size={16} />}
-            <span style={s.metaName}>{isMe ? 'You' : msg.senderUsername}</span>
+            {!isMe && (
+              <span onClick={(e) => onProfileClick?.(e, msg.senderId, msg.senderUsername)} style={{ cursor: 'pointer' }}>
+                <Avatar username={msg.senderUsername} size={16} />
+              </span>
+            )}
+            <span
+              style={{ ...s.metaName, cursor: !isMe ? 'pointer' : 'default' }}
+              onClick={!isMe ? (e) => onProfileClick?.(e, msg.senderId, msg.senderUsername) : undefined}
+            >{isMe ? 'You' : msg.senderUsername}</span>
             <span style={s.metaTime}>{formatTime(cluster[cluster.length - 1].createdAt)}</span>
           </div>
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { ServerData, ServerRole } from '@/pages/servers/[serverId]/[channelId]';
 
 interface Props {
@@ -9,342 +9,311 @@ interface Props {
   onServerUpdate: () => void;
 }
 
+interface CtxMenu { x: number; y: number; userId: string; username: string; }
+interface ProfileCard { userId: string; x: number; y: number; }
+
 export default function MemberListPane({ server, currentUserId, isOwner, hasPermission, onServerUpdate }: Props) {
-  const [selectedMember, setSelectedMember] = useState<string | null>(null);
-  const [showRoleModal, setShowRoleModal] = useState<string | null>(null); // userId
+  const [ctxMenu, setCtxMenu] = useState<CtxMenu | null>(null);
+  const [profile, setProfile] = useState<ProfileCard | null>(null);
+  const [muteModal, setMuteModal] = useState<{ userId: string; username: string } | null>(null);
+  const [muteDuration, setMuteDuration] = useState('10');
+  const [showRoleModal, setShowRoleModal] = useState<string | null>(null);
 
-  const canKick = hasPermission('kickMembers');
-  const canManageRoles = hasPermission('manageRoles');
+  const canKick = isOwner || hasPermission('kickMembers');
+  const canBan = isOwner || hasPermission('banMembers');
+  const canMute = isOwner || hasPermission('muteMembers');
+  const canManageRoles = isOwner || hasPermission('manageRoles');
 
-  async function kickMember(userId: string) {
-    if (!confirm('Kick this member?')) return;
+  useEffect(() => {
+    function close(e: MouseEvent) {
+      const t = e.target as HTMLElement;
+      if (!t.closest('[data-ctx]')) setCtxMenu(null);
+      if (!t.closest('[data-profile]')) setProfile(null);
+    }
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, []);
+
+  const getHighestRole = (roles: string[]): ServerRole | null => {
+    let best: ServerRole | null = null;
+    for (const id of roles) {
+      const r = server.roles.find(ro => ro.id === id);
+      if (r && (!best || r.position > best.position)) best = r;
+    }
+    return best;
+  };
+
+  const ownerMember = server.members.find(m => m.userId === server.ownerId);
+  const others = server.members
+    .filter(m => m.userId !== server.ownerId)
+    .sort((a, b) => (getHighestRole(b.roles)?.position || 0) - (getHighestRole(a.roles)?.position || 0));
+  const allMembers = ownerMember ? [ownerMember, ...others] : others;
+
+  function openCtx(e: React.MouseEvent, m: typeof allMembers[0]) {
+    e.preventDefault(); e.stopPropagation();
+    if (m.userId === currentUserId) return;
+    if (!(canKick || canBan || canMute || canManageRoles)) return;
+    setProfile(null);
+    const x = Math.min(e.clientX, window.innerWidth - 200);
+    const y = Math.min(e.clientY, window.innerHeight - 260);
+    setCtxMenu({ x, y, userId: m.userId, username: m.username });
+  }
+
+  function openProfile(e: React.MouseEvent, m: typeof allMembers[0]) {
+    e.stopPropagation();
+    setCtxMenu(null);
+    const rect = (e.currentTarget as HTMLElement).closest('[data-member-row]')?.getBoundingClientRect();
+    if (!rect) return;
+    const x = Math.max(8, rect.left - 268);
+    const y = Math.max(8, Math.min(rect.top, window.innerHeight - 300));
+    setProfile({ userId: m.userId, x, y });
+  }
+
+  async function kick(userId: string, username: string) {
+    setCtxMenu(null);
+    if (!confirm(`Kick ${username}?`)) return;
     await fetch(`/api/servers/${server.id}/members/${userId}`, { method: 'DELETE' });
     onServerUpdate();
   }
 
-  // Group members by highest role
-  const roleOrder = new Map(server.roles.map((r, i) => [r.id, server.roles.length - i]));
+  async function ban(userId: string, username: string) {
+    setCtxMenu(null);
+    if (!confirm(`Ban ${username}? They won't be able to rejoin.`)) return;
+    await fetch(`/api/servers/${server.id}/members/${userId}?action=ban`, { method: 'DELETE' });
+    onServerUpdate();
+  }
 
-  const getHighestRole = (roles: string[]): ServerRole | null => {
-    let highest: ServerRole | null = null;
-    let highestPos = -1;
-    for (const roleId of roles) {
-      const role = server.roles.find(r => r.id === roleId);
-      if (role && role.position > highestPos) {
-        highestPos = role.position;
-        highest = role;
-      }
-    }
-    return highest;
-  };
+  async function mute(userId: string) {
+    const mins = parseInt(muteDuration);
+    if (isNaN(mins) || mins <= 0) return;
+    await fetch(`/api/servers/${server.id}/members/${userId}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mute: true, muteDuration: mins }),
+    });
+    setMuteModal(null); onServerUpdate();
+  }
 
-  const ownerMember = server.members.find(m => m.userId === server.ownerId);
-  const otherMembers = server.members.filter(m => m.userId !== server.ownerId);
-
-  // Sort others by highest role
-  otherMembers.sort((a, b) => {
-    const aRole = getHighestRole(a.roles);
-    const bRole = getHighestRole(b.roles);
-    return (bRole?.position || 0) - (aRole?.position || 0);
-  });
-
-  const allMembers = ownerMember ? [ownerMember, ...otherMembers] : otherMembers;
+  const profileMember = profile ? server.members.find(m => m.userId === profile.userId) : null;
+  const profileRoles = profileMember ? server.roles.filter(r => !r.isDefault && profileMember.roles.includes(r.id)) : [];
 
   return (
-    <aside style={styles.pane}>
-      <div style={styles.header}>
-        <span style={styles.title}>MEMBERS — {server.members.length}</span>
+    <aside style={st.pane} onClick={() => { setCtxMenu(null); setProfile(null); }}>
+      <div style={st.header}>
+        <span style={st.title}>MEMBERS — {server.members.length}</span>
       </div>
-      <div style={styles.list}>
+
+      <div style={st.list}>
         {allMembers.map(member => {
           const isMe = member.userId === currentUserId;
           const isMemberOwner = member.userId === server.ownerId;
           const highestRole = getHighestRole(member.roles);
-          const color = highestRole?.color || 'var(--text-2)';
-          const hue = member.username.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
-          const initials = member.username.slice(0, 2).toUpperCase();
+          const nameColor = highestRole?.color || 'var(--text-2)';
+          const hue = member.username.split('').reduce((a: number, c: string) => a + c.charCodeAt(0), 0) % 360;
 
           return (
-            <div key={member.userId} style={styles.memberItem}>
-              <div style={{
-                ...styles.avatar,
-                background: `hsl(${hue}, 10%, 20%)`,
-                border: `1px solid hsl(${hue}, 10%, 30%)`,
-                color: `hsl(${hue}, 20%, 80%)`,
-              }}>
-                {initials}
+            <div
+              key={member.userId}
+              data-member-row="1"
+              style={st.memberItem}
+              onContextMenu={(e) => openCtx(e, member)}
+            >
+              <div
+                style={{ ...st.avatar, background: `hsl(${hue},10%,20%)`, border: `1px solid hsl(${hue},10%,30%)`, color: `hsl(${hue},20%,80%)`, cursor: 'pointer' }}
+                onClick={(e) => openProfile(e, member)}
+                title="View profile"
+              >
+                {member.username.slice(0, 2).toUpperCase()}
               </div>
-              <div style={styles.memberInfo}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ ...styles.memberName, color }}>
+
+              <div style={st.memberInfo}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span
+                    style={{ ...st.memberName, color: nameColor, cursor: 'pointer' }}
+                    onClick={(e) => openProfile(e, member)}
+                    title="View profile"
+                  >
                     {member.nickname || member.username}
                   </span>
-                  {isMemberOwner && <span style={styles.ownerBadge}>owner</span>}
+                  {isMemberOwner && <span style={st.ownerBadge}>owner</span>}
+                  {isMe && <span style={{ ...st.ownerBadge, color: '#23a55a' }}>you</span>}
                 </div>
-                {member.roles.filter(rId => {
-                  const r = server.roles.find(ro => ro.id === rId);
-                  return r && !r.isDefault;
-                }).slice(0, 2).map(roleId => {
-                  const role = server.roles.find(r => r.id === roleId);
-                  if (!role) return null;
-                  return (
-                    <span key={roleId} style={{ ...styles.roleBadge, borderColor: role.color, color: role.color }}>
+                <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' as const }}>
+                  {server.roles.filter(r => !r.isDefault && member.roles.includes(r.id)).slice(0, 2).map(role => (
+                    <span key={role.id} style={{ ...st.roleBadge, borderColor: role.color + '55', color: role.color }}>
                       {role.name}
                     </span>
-                  );
-                })}
-              </div>
-              {!isMe && !isMemberOwner && (canKick || canManageRoles) && (
-                <div style={styles.memberActions}>
-                  {canManageRoles && (
-                    <button style={styles.actionBtn} onClick={() => setShowRoleModal(member.userId)} title="Manage roles">
-                      <IconRole />
-                    </button>
-                  )}
-                  {canKick && (
-                    <button style={{ ...styles.actionBtn, color: 'var(--danger)' }} onClick={() => kickMember(member.userId)} title="Kick member">
-                      <IconKick />
-                    </button>
-                  )}
+                  ))}
                 </div>
-              )}
+              </div>
             </div>
           );
         })}
       </div>
 
+      {/* Right-click context menu */}
+      {ctxMenu && (
+        <div data-ctx="1" style={{ ...st.ctxMenu, top: ctxMenu.y, left: ctxMenu.x }}>
+          <div style={st.ctxHeader}>{ctxMenu.username}</div>
+          {canManageRoles && (
+            <button style={st.ctxItem} onClick={() => { setCtxMenu(null); setShowRoleModal(ctxMenu.userId); }}>
+              ◈ Manage Roles
+            </button>
+          )}
+          {canMute && (
+            <button style={st.ctxItem} onClick={() => { setCtxMenu(null); setMuteModal({ userId: ctxMenu.userId, username: ctxMenu.username }); }}>
+              🔇 Mute
+            </button>
+          )}
+          {(canKick || canBan) && <div style={st.ctxDivider} />}
+          {canKick && (
+            <button style={{ ...st.ctxItem, color: '#ffa000' }} onClick={() => kick(ctxMenu.userId, ctxMenu.username)}>
+              Kick Member
+            </button>
+          )}
+          {canBan && (
+            <button style={{ ...st.ctxItem, color: '#ed4245' }} onClick={() => ban(ctxMenu.userId, ctxMenu.username)}>
+              Ban Member
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Profile popup */}
+      {profile && profileMember && (
+        <div
+          data-profile="1"
+          style={{ ...st.profileCard, top: profile.y, left: profile.x }}
+          onClick={e => e.stopPropagation()}
+        >
+          <div style={{ ...st.profileBanner, background: `hsl(${profileMember.username.split('').reduce((a:number,c:string)=>a+c.charCodeAt(0),0)%360},20%,14%)` }} />
+          <div style={st.profileBody}>
+            <div style={st.profileAvatarWrap}>
+              <div style={{
+                ...st.profileAvatar,
+                background: `hsl(${profileMember.username.split('').reduce((a:number,c:string)=>a+c.charCodeAt(0),0)%360},10%,20%)`,
+                color: `hsl(${profileMember.username.split('').reduce((a:number,c:string)=>a+c.charCodeAt(0),0)%360},20%,80%)`,
+              }}>
+                {profileMember.username.slice(0,2).toUpperCase()}
+              </div>
+            </div>
+            <div style={st.profileName}>{profileMember.nickname || profileMember.username}</div>
+            {profileMember.nickname && <div style={st.profileUsername}>{profileMember.username}</div>}
+            {profileMember.bio && <div style={st.profileBio}>{profileMember.bio}</div>}
+            {profileRoles.length > 0 && (
+              <div style={{ marginTop: 10 }}>
+                <div style={st.profileSectionLabel}>ROLES</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4, marginTop: 4 }}>
+                  {profileRoles.map(r => (
+                    <span key={r.id} style={{ ...st.roleBadge, borderColor: r.color + '55', color: r.color }}>{r.name}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div style={{ marginTop: 10 }}>
+              <div style={st.profileSectionLabel}>JOINED SERVER</div>
+              <div style={st.profileDate}>{new Date(profileMember.joinedAt).toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mute modal */}
+      {muteModal && (
+        <div style={st.overlay} onClick={() => setMuteModal(null)}>
+          <div style={st.modal} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', fontFamily: 'var(--font-display)', marginBottom: 4 }}>Mute {muteModal.username}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 16 }}>Select how long to mute this member</div>
+            <label style={st.label}>DURATION (MINUTES)</label>
+            <input style={st.input} type="number" min="1" max="10080" value={muteDuration} onChange={e => setMuteDuration(e.target.value)} />
+            <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' as const }}>
+              {([['5m','5'],['15m','15'],['30m','30'],['1h','60'],['6h','360'],['24h','1440']] as [string,string][]).map(([label, val]) => (
+                <button key={label} onClick={() => setMuteDuration(val)} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 4, border: '1px solid var(--border)', background: muteDuration === val ? 'var(--bg-3)' : 'transparent', color: muteDuration === val ? 'var(--text)' : 'var(--text-3)', cursor: 'pointer' }}>{label}</button>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'flex-end' }}>
+              <button style={{ padding: '7px 14px', border: '1px solid var(--border)', borderRadius: 6, background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }} onClick={() => setMuteModal(null)}>Cancel</button>
+              <button style={{ padding: '7px 14px', border: 'none', borderRadius: 6, background: 'var(--text)', color: 'var(--bg)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }} onClick={() => mute(muteModal.userId)}>Mute</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showRoleModal && (
-        <RoleAssignModal
-          server={server}
-          userId={showRoleModal}
-          onClose={() => setShowRoleModal(null)}
-          onUpdate={onServerUpdate}
-        />
+        <RoleAssignModal server={server} userId={showRoleModal} onClose={() => setShowRoleModal(null)} onUpdate={onServerUpdate} />
       )}
     </aside>
   );
 }
 
-function RoleAssignModal({ server, userId, onClose, onUpdate }: {
-  server: ServerData;
-  userId: string;
-  onClose: () => void;
-  onUpdate: () => void;
-}) {
+function RoleAssignModal({ server, userId, onClose, onUpdate }: { server: ServerData; userId: string; onClose: () => void; onUpdate: () => void; }) {
   const member = server.members.find(m => m.userId === userId);
   if (!member) return null;
-
   const nonDefaultRoles = server.roles.filter(r => !r.isDefault);
 
   async function toggleRole(roleId: string, has: boolean) {
     await fetch(`/api/servers/${server.id}/members/${userId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(has ? { removeRoles: [roleId] } : { addRoles: [roleId] }),
     });
     onUpdate();
   }
 
   return (
-    <div style={styles.overlay} onClick={onClose}>
-      <div style={styles.modal} onClick={e => e.stopPropagation()}>
-        <div style={styles.modalHeader}>
-          <span style={styles.modalTitle}>MANAGE ROLES — {member.username}</span>
-          <button onClick={onClose} style={styles.closeBtn}>✕</button>
+    <div style={st.overlay} onClick={onClose}>
+      <div style={st.modal} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, letterSpacing: '0.1em', color: 'var(--text)' }}>MANAGE ROLES — {member.username}</span>
+          <button onClick={onClose} style={{ color: 'var(--text-3)', cursor: 'pointer', fontSize: 14, padding: 4, border: 'none', background: 'transparent' }}>✕</button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {nonDefaultRoles.map(role => {
             const has = member.roles.includes(role.id);
             return (
-              <div key={role.id} style={styles.roleRow}>
+              <div key={role.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', background: 'var(--bg-3)', borderRadius: 6, border: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{ width: 10, height: 10, borderRadius: '50%', background: role.color }} />
                   <span style={{ fontSize: 13, color: 'var(--text-2)' }}>{role.name}</span>
                 </div>
-                <button
-                  style={{ ...styles.toggleBtn, background: has ? 'var(--text)' : 'var(--bg-3)', color: has ? 'var(--bg)' : 'var(--text-3)' }}
-                  onClick={() => toggleRole(role.id, has)}
-                >
+                <button style={{ padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontFamily: 'var(--font-display)', fontWeight: 700, background: has ? 'var(--text)' : 'var(--bg-3)', color: has ? 'var(--bg)' : 'var(--text-3)' }} onClick={() => toggleRole(role.id, has)}>
                   {has ? 'Remove' : 'Add'}
                 </button>
               </div>
             );
           })}
-          {nonDefaultRoles.length === 0 && (
-            <p style={{ color: 'var(--text-3)', fontSize: 12 }}>No roles created yet. Add roles in Server Settings.</p>
-          )}
+          {nonDefaultRoles.length === 0 && <p style={{ color: 'var(--text-3)', fontSize: 12 }}>No roles yet.</p>}
         </div>
       </div>
     </div>
   );
 }
 
-const IconRole = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-  </svg>
-);
-const IconKick = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
-  </svg>
-);
-
-const styles: Record<string, React.CSSProperties> = {
-  pane: {
-    width: 220,
-    minWidth: 220,
-    height: '100vh',
-    background: 'var(--bg-1)',
-    borderLeft: '1px solid var(--border)',
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden',
-  },
-  header: {
-    padding: '14px 14px 10px',
-    borderBottom: '1px solid var(--border)',
-    flexShrink: 0,
-  },
-  title: {
-    fontSize: 10,
-    letterSpacing: '0.14em',
-    color: 'var(--text-3)',
-    fontFamily: 'var(--font-display)',
-    fontWeight: 700,
-  },
-  list: {
-    flex: 1,
-    overflowY: 'auto',
-    padding: '8px 8px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 2,
-  },
-  memberItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    padding: '6px 6px',
-    borderRadius: 'var(--radius-md)',
-    transition: 'background var(--transition)',
-  },
-  avatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 'var(--radius)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontFamily: 'var(--font-display)',
-    fontWeight: 800,
-    fontSize: 11,
-    flexShrink: 0,
-    letterSpacing: 0.5,
-    userSelect: 'none',
-  },
-  memberInfo: {
-    flex: 1,
-    minWidth: 0,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 2,
-  },
-  memberName: {
-    fontSize: 12,
-    fontFamily: 'var(--font-display)',
-    fontWeight: 600,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  ownerBadge: {
-    fontSize: 9,
-    color: '#ffd700',
-    letterSpacing: '0.06em',
-    fontFamily: 'var(--font-mono)',
-  },
-  roleBadge: {
-    fontSize: 9,
-    padding: '1px 5px',
-    border: '1px solid',
-    borderRadius: 2,
-    letterSpacing: '0.04em',
-    display: 'inline-block',
-    width: 'fit-content',
-  },
-  memberActions: {
-    display: 'flex',
-    gap: 2,
-    flexShrink: 0,
-  },
-  actionBtn: {
-    padding: 4,
-    border: 'none',
-    background: 'transparent',
-    cursor: 'pointer',
-    color: 'var(--text-3)',
-    display: 'flex',
-    alignItems: 'center',
-    borderRadius: 'var(--radius)',
-    transition: 'color var(--transition)',
-  },
-  overlay: {
-    position: 'fixed',
-    inset: 0,
-    background: 'rgba(0,0,0,0.7)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 500,
-  },
-  modal: {
-    background: 'var(--bg-2)',
-    border: '1px solid var(--border)',
-    borderRadius: 'var(--radius-md)',
-    padding: 24,
-    minWidth: 340,
-    maxWidth: 440,
-    width: '100%',
-  },
-  modalHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontFamily: 'var(--font-display)',
-    fontWeight: 700,
-    fontSize: 12,
-    letterSpacing: '0.1em',
-    color: 'var(--text)',
-  },
-  closeBtn: {
-    color: 'var(--text-3)',
-    cursor: 'pointer',
-    fontSize: 14,
-    padding: 4,
-    border: 'none',
-    background: 'transparent',
-  },
-  roleRow: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '8px 10px',
-    background: 'var(--bg-3)',
-    borderRadius: 'var(--radius)',
-    border: '1px solid var(--border)',
-  },
-  toggleBtn: {
-    padding: '4px 12px',
-    border: 'none',
-    borderRadius: 'var(--radius)',
-    cursor: 'pointer',
-    fontSize: 11,
-    fontFamily: 'var(--font-display)',
-    fontWeight: 700,
-    letterSpacing: '0.06em',
-  },
+const st: Record<string, React.CSSProperties> = {
+  pane: { width: 260, minWidth: 260, height: '100vh', background: 'var(--bg-1)', borderLeft: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' },
+  header: { padding: '14px 16px 10px', borderBottom: '1px solid var(--border)', flexShrink: 0 },
+  title: { fontSize: 10, letterSpacing: '0.14em', color: 'var(--text-3)', fontFamily: 'var(--font-display)', fontWeight: 700 },
+  list: { flex: 1, overflowY: 'auto', padding: '8px 8px', display: 'flex', flexDirection: 'column', gap: 2 },
+  memberItem: { display: 'flex', alignItems: 'center', gap: 9, padding: '7px 8px', borderRadius: 'var(--radius-md)', transition: 'background var(--transition)', cursor: 'default' },
+  avatar: { width: 34, height: 34, borderRadius: 'var(--radius)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 12, flexShrink: 0, letterSpacing: 0.5, userSelect: 'none' },
+  memberInfo: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 },
+  memberName: { fontSize: 13, fontFamily: 'var(--font-display)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  ownerBadge: { fontSize: 9, color: '#ffd700', letterSpacing: '0.06em', fontFamily: 'var(--font-mono)', flexShrink: 0 },
+  roleBadge: { fontSize: 9, padding: '1px 5px', border: '1px solid', borderRadius: 2, letterSpacing: '0.04em', display: 'inline-block', width: 'fit-content' },
+  ctxMenu: { position: 'fixed', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 8, padding: '4px', zIndex: 1000, minWidth: 180, boxShadow: '0 8px 32px rgba(0,0,0,0.5)' },
+  ctxHeader: { padding: '6px 10px', fontSize: 10, letterSpacing: '0.1em', color: 'var(--text-3)', fontFamily: 'var(--font-display)', fontWeight: 700, borderBottom: '1px solid var(--border)', marginBottom: 4 },
+  ctxItem: { display: 'block', width: '100%', padding: '7px 10px', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 12, borderRadius: 4, color: 'var(--text-2)', fontFamily: 'var(--font-display)' },
+  ctxDivider: { height: 1, background: 'var(--border)', margin: '3px 0' },
+  profileCard: { position: 'fixed', width: 256, background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden', zIndex: 1000, boxShadow: '0 12px 40px rgba(0,0,0,0.6)' },
+  profileBanner: { height: 56, width: '100%' },
+  profileBody: { padding: '0 16px 16px' },
+  profileAvatarWrap: { marginTop: -24, marginBottom: 8 },
+  profileAvatar: { width: 48, height: 48, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, border: '3px solid var(--bg-2)', userSelect: 'none' },
+  profileName: { fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, color: 'var(--text)', letterSpacing: '0.02em' },
+  profileUsername: { fontSize: 11, color: 'var(--text-3)', marginTop: 1, fontFamily: 'var(--font-mono)' },
+  profileBio: { fontSize: 12, color: 'var(--text-2)', marginTop: 8, lineHeight: 1.5 },
+  profileSectionLabel: { fontSize: 9, letterSpacing: '0.12em', color: 'var(--text-3)', fontFamily: 'var(--font-display)', fontWeight: 700 },
+  profileDate: { fontSize: 12, color: 'var(--text-2)', marginTop: 2 },
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 },
+  modal: { background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 8, padding: 20, minWidth: 340, maxWidth: 440, width: '100%' },
+  label: { display: 'block', fontSize: 10, letterSpacing: '0.12em', color: 'var(--text-3)', fontFamily: 'var(--font-display)', fontWeight: 700, marginBottom: 6 },
+  input: { width: '100%', padding: '9px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 13, outline: 'none', boxSizing: 'border-box' },
 };

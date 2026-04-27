@@ -166,9 +166,10 @@ export default function ServerSidebar({
                   setContextMenu({ x: e.clientX, y: e.clientY, type: 'channel', id: ch.id });
                 } : undefined}
                 onDragStart={() => setDragging({ type: 'channel', id: ch.id })}
-                onDragOver={(e) => { e.preventDefault(); setDragOver(ch.id); }}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(ch.id); }}
                 onDragLeave={() => setDragOver(null)}
-                onDrop={() => {
+                onDrop={(e) => {
+                  e.stopPropagation();
                   setDragOver(null);
                   if (dragging?.type === 'channel' && dragging.id !== ch.id) reorderChannels(dragging.id, ch.id);
                   setDragging(null);
@@ -345,7 +346,7 @@ function CategorySection({ category, channels, activeChannelId, canManage, dragg
           onDragStart={() => setDragging({ type: 'channel', id: ch.id })}
           onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(ch.id); }}
           onDragLeave={() => setDragOver(null)}
-          onDrop={() => onChannelDrop(ch.id)}
+          onDrop={(e) => { e.stopPropagation(); onChannelDrop(ch.id); }}
           onDragEnd={() => { setDragging(null); setDragOver(null); }}
         />
       ))}

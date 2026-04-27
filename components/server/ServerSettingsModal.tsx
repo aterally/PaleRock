@@ -189,15 +189,17 @@ function RolesTab({ server, onUpdate }: { server: ServerData; onUpdate: () => vo
   async function saveRole() {
     if (!selectedRole) return;
     setSaving(true);
+    const body: Record<string, unknown> = { roleId: selectedRole.id, color: editColor, permissions: perms };
+    // Never send name for @everyone — API returns 400 for that
+    if (!selectedRole.isDefault) body.name = editName;
     const r = await fetch(`/api/servers/${server.id}/roles`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ roleId: selectedRole.id, name: editName, color: editColor, permissions: perms }),
+      body: JSON.stringify(body),
     });
     setSaving(false);
     if (r.ok) {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
-      // onUpdate refreshes server prop; selectedRole re-derives from the new data automatically
       onUpdate();
     }
   }
@@ -668,7 +670,7 @@ function SectionHeader({ title, subtitle, danger }: { title: string; subtitle?: 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const s: Record<string, React.CSSProperties> = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 800, backdropFilter: 'blur(4px)' },
-  modal: { background: 'var(--bg-1)', border: '1px solid var(--border)', borderRadius: 8, display: 'flex', width: 'min(94vw, 1060px)', height: 'min(90vh, 800px)', overflow: 'hidden', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' },
+  modal: { background: 'var(--bg-1)', border: '1px solid var(--border)', borderRadius: 8, display: 'flex', width: 'min(96vw, 1100px)', height: 'min(92vh, 840px)', overflow: 'hidden', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' },
 
   // Sidebar
   sidebar: { width: 220, minWidth: 220, background: 'var(--bg-2)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
@@ -685,8 +687,8 @@ const s: Record<string, React.CSSProperties> = {
   closeBtn: { padding: '12px 16px', border: 'none', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', fontSize: 12, textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8, borderTop: '1px solid var(--border)', transition: 'color 0.15s' },
 
   // Content
-  content: { flex: 1, overflowY: 'auto', padding: '28px 28px' },
-  tabContent: { display: 'flex', flexDirection: 'column', maxWidth: 580, gap: 0 },
+  content: { flex: 1, overflowY: 'auto', padding: '32px 36px' },
+  tabContent: { display: 'flex', flexDirection: 'column', width: '100%', gap: 0 },
 
   // Cards
   card: { background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '16px', boxSizing: 'border-box' as const },
