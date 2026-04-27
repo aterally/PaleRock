@@ -364,7 +364,7 @@ function ChannelItem({ channel, active, onClick, onContextMenu, canManage, isDra
   onDragStart?: () => void;
   onDragOver?: (e: React.DragEvent) => void;
   onDragLeave?: () => void;
-  onDrop?: () => void;
+  onDrop?: (e: React.DragEvent) => void;
   onDragEnd?: () => void;
 }) {
   return (
