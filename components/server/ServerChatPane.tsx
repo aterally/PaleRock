@@ -196,6 +196,7 @@ export default function ServerChatPane({
                     title="View profile"
                   >
                     <Avatar username={group.author} avatar={group.authorAvatar} size={36} />
+                  </div>
                   <div style={styles.groupContent}>
                     <div style={styles.groupHeader}>
                       <span
