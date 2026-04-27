@@ -367,9 +367,6 @@ const s: Record<string, React.CSSProperties> = {
     gap: 12,
     flexShrink: 0,
   },
-    background: '#0a0a0a',
-    flexShrink: 0,
-  },
   headerName: {
     fontFamily: "'Cormorant Garamond', Georgia, serif",
     fontWeight: 500,
