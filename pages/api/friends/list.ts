@@ -16,6 +16,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { db } = await connectToDatabase();
   const meId = new ObjectId(payload.userId);
 
+  const meUser = await db.collection('users').findOne({ _id: meId }, { projection: { blockedUsers: 1 } });
+  const myBlockedIds: string[] = (meUser?.blockedUsers || []);
+
   // Actual friends = DM channels (a channel existing = accepted friendship)
   const dmChannels = await db.collection('channels').aggregate([
     { $match: { type: 'dm', members: meId } },
@@ -42,6 +45,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       avatar: other?.avatar || null,
       channelId: ch._id.toString(),
       since: ch.createdAt,
+      isBlocked: myBlockedIds.includes(other?._id.toString()),
     };
   }).filter(f => f.userId);
 

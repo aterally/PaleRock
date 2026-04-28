@@ -28,6 +28,8 @@ export interface ServerChannel {
   type: string;
   categoryId: string | null;
   position: number;
+  isPrivate: boolean;
+  allowedRoles: string[];
 }
 
 export interface ServerMember {
@@ -40,6 +42,7 @@ export interface ServerMember {
   pronouns: string;
   avatar: string | null;
   mutedUntil: string | null;
+  lastOnline: string | null;
 }
 
 export interface ServerData {

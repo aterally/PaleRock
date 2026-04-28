@@ -59,6 +59,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const targetId = targetUser._id as ObjectId;
     if (targetId.equals(meId)) return res.status(400).json({ error: 'Cannot add yourself' });
 
+    // Check blocking in either direction
+    const meUser = await db.collection('users').findOne({ _id: meId }, { projection: { blockedUsers: 1 } });
+    const theirUser = await db.collection('users').findOne({ _id: targetId }, { projection: { blockedUsers: 1 } });
+    if ((meUser?.blockedUsers || []).includes(targetId.toString())) return res.status(403).json({ error: 'You have blocked this user' });
+    if ((theirUser?.blockedUsers || []).includes(meId.toString())) return res.status(403).json({ error: 'Cannot send request to this user' });
+
     // Check if already friends (channel exists)
     const existingChannel = await db.collection('channels').findOne({
       type: 'dm',

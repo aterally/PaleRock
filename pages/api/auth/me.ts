@@ -23,6 +23,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (!user) return res.status(404).json({ error: 'User not found' });
 
+    // Track lastOnline on every authenticated request
+    await db.collection('users').updateOne(
+      { _id: new ObjectId(payload.userId) },
+      { $set: { lastOnline: new Date() } }
+    );
+
     return res.status(200).json({
       user: {
         id: user._id.toString(),
@@ -31,6 +37,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         bio: user.bio || '',
         registeredAt: user.registeredAt,
         status: user.status || 'online',
+        lastOnline: user.lastOnline ? user.lastOnline.toISOString() : null,
       }
     });
   } catch (err) {

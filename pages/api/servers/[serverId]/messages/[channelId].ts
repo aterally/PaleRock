@@ -38,6 +38,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const channel = await db.collection('serverChannels').findOne({ _id: channelId, serverId });
   if (!channel) return res.status(404).json({ error: 'Channel not found' });
 
+  // Enforce private channel access
+  if (channel.isPrivate && !isOwner) {
+    const myRoleIds: string[] = myMember.roles || [];
+    const isAdmin = server.roles.some((r: any) =>
+      (r.isDefault || myRoleIds.includes(r.id)) && (r.permissions?.administrator || r.permissions?.manageChannels)
+    );
+    const hasAccess = isAdmin || (channel.allowedRoles || []).some((rid: string) => myRoleIds.includes(rid));
+    if (!hasAccess) return res.status(403).json({ error: 'No access to this channel' });
+  }
   // viewChannels gate
   if (!hasPerm('viewChannels')) return res.status(403).json({ error: 'Missing permission: viewChannels' });
 

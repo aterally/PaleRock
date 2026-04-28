@@ -80,6 +80,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Message too long (max 4000 chars)' });
     }
 
+    // Check if either party has blocked the other
+    if (channel.type === 'dm') {
+      const otherId = channel.members.find((id: ObjectId) => !id.equals(meId));
+      if (otherId) {
+        const meUser = await db.collection('users').findOne({ _id: meId }, { projection: { blockedUsers: 1 } });
+        const otherUser = await db.collection('users').findOne({ _id: otherId }, { projection: { blockedUsers: 1 } });
+        const blocked = (meUser?.blockedUsers || []).includes(otherId.toString()) ||
+                        (otherUser?.blockedUsers || []).includes(meId.toString());
+        if (blocked) return res.status(403).json({ error: 'Cannot send messages to this user' });
+      }
+    }
+
     const now = new Date();
     const result = await db.collection('messages').insertOne({
       channelId: new ObjectId(channelId),

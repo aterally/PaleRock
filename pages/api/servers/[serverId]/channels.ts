@@ -39,7 +39,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'POST') {
     if (!hasManageChannels(server, meId)) return res.status(403).json({ error: 'Missing permissions' });
 
-    const { name, categoryId, type = 'text', topic = '' } = req.body;
+    const { name, categoryId, type = 'text', topic = '', isPrivate = false, allowedRoles = [] } = req.body;
     if (!name || name.trim().length < 1) return res.status(400).json({ error: 'Channel name required' });
 
     const channelName = name.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 50);
@@ -53,6 +53,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       topic,
       type,
       position: count,
+      isPrivate: !!isPrivate,
+      allowedRoles: Array.isArray(allowedRoles) ? allowedRoles : [],
       createdAt: new Date(),
       lastMessageAt: null,
     };

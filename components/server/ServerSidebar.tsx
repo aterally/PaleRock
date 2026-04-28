@@ -22,6 +22,8 @@ export default function ServerSidebar({
   const [showCreateCategory, setShowCreateCategory] = useState(false);
   const [newChannelName, setNewChannelName] = useState('');
   const [newChannelCategory, setNewChannelCategory] = useState('');
+  const [newChannelPrivate, setNewChannelPrivate] = useState(false);
+  const [newChannelAllowedRoles, setNewChannelAllowedRoles] = useState<string[]>([]);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteCode, setInviteCode] = useState('');
@@ -33,11 +35,16 @@ export default function ServerSidebar({
     if (!newChannelName.trim()) return;
     const r = await fetch(`/api/servers/${server.id}/channels`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newChannelName, categoryId: newChannelCategory || null }),
+      body: JSON.stringify({
+        name: newChannelName,
+        categoryId: newChannelCategory || null,
+        isPrivate: newChannelPrivate,
+        allowedRoles: newChannelAllowedRoles,
+      }),
     });
     if (r.ok) {
       const data = await r.json();
-      setShowCreateChannel(false); setNewChannelName('');
+      setShowCreateChannel(false); setNewChannelName(''); setNewChannelPrivate(false); setNewChannelAllowedRoles([]);
       onServerUpdate(); onChannelSelect(data.channel.id);
     }
   }
@@ -253,11 +260,25 @@ export default function ServerSidebar({
       {/* Context menu */}
       {contextMenu && (
         <div style={{ ...styles.contextMenu, top: contextMenu.y, left: contextMenu.x }}>
-          {contextMenu.type === 'channel' && (
-            <button style={{ ...styles.contextItem, color: 'var(--danger)' }} onClick={() => deleteChannel(contextMenu.id)}>
-              Delete Channel
-            </button>
-          )}
+          {contextMenu.type === 'channel' && (() => {
+            const ch = server.channels.find(c => c.id === contextMenu.id);
+            return (
+              <>
+                <button style={styles.contextItem} onClick={async () => {
+                  await fetch(`/api/servers/${server.id}/channel/${contextMenu.id}`, {
+                    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ isPrivate: !ch?.isPrivate, allowedRoles: ch?.allowedRoles || [] }),
+                  });
+                  setContextMenu(null); onServerUpdate();
+                }}>
+                  {ch?.isPrivate ? '🔓 Make Public' : '🔒 Make Private'}
+                </button>
+                <button style={{ ...styles.contextItem, color: 'var(--danger)' }} onClick={() => deleteChannel(contextMenu.id)}>
+                  Delete Channel
+                </button>
+              </>
+            );
+          })()}
           {contextMenu.type === 'category' && (
             <button style={{ ...styles.contextItem, color: 'var(--danger)' }} onClick={() => deleteCategory(contextMenu.id)}>
               Delete Category
@@ -276,6 +297,48 @@ export default function ServerSidebar({
             <option value="">No category</option>
             {server.categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
           </select>
+          <label style={{ ...styles.label, marginTop: 14 }}>PRIVATE CHANNEL</label>
+          <div
+            style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 13px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', cursor: 'pointer' }}
+            onClick={() => setNewChannelPrivate(v => !v)}
+          >
+            <div style={{
+              width: 36, height: 20, borderRadius: 10, background: newChannelPrivate ? 'var(--text)' : 'var(--bg-3)',
+              position: 'relative', transition: 'background 0.2s', flexShrink: 0,
+            }}>
+              <div style={{
+                position: 'absolute', top: 2, left: newChannelPrivate ? 18 : 2,
+                width: 16, height: 16, borderRadius: '50%', background: newChannelPrivate ? 'var(--bg)' : 'var(--text-3)',
+                transition: 'left 0.2s',
+              }} />
+            </div>
+            <span style={{ fontSize: 13, color: 'var(--text-2)', fontFamily: 'var(--font-display)' }}>
+              {newChannelPrivate ? 'Only selected roles can view' : 'Visible to all members'}
+            </span>
+          </div>
+          {newChannelPrivate && server.roles.filter(r => !r.isDefault).length > 0 && (
+            <>
+              <label style={{ ...styles.label, marginTop: 14 }}>ALLOWED ROLES</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {server.roles.filter(r => !r.isDefault).map(role => (
+                  <div
+                    key={role.id}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', cursor: 'pointer' }}
+                    onClick={() => setNewChannelAllowedRoles(prev =>
+                      prev.includes(role.id) ? prev.filter(id => id !== role.id) : [...prev, role.id]
+                    )}
+                  >
+                    <div style={{
+                      width: 14, height: 14, borderRadius: 3, border: `2px solid ${role.color}`,
+                      background: newChannelAllowedRoles.includes(role.id) ? role.color : 'transparent',
+                      flexShrink: 0,
+                    }} />
+                    <span style={{ fontSize: 13, color: role.color, fontFamily: 'var(--font-display)' }}>{role.name}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
           <div style={styles.modalActions}>
             <button style={styles.cancelBtn} onClick={() => setShowCreateChannel(false)}>Cancel</button>
             <button style={styles.confirmBtn} onClick={createChannel}>Create</button>
@@ -404,7 +467,7 @@ function ChannelItem({ channel, active, onClick, onContextMenu, canManage, isDra
       onDragEnd={onDragEnd}
     >
       {canManage && <span style={{ fontSize: 8, color: 'var(--text-3)', opacity: 0.4, flexShrink: 0 }}>⠿</span>}
-      <span style={styles.channelHash}>#</span>
+      <span style={styles.channelHash}>{channel.isPrivate ? <IconLock /> : '#'}</span>
       <span style={styles.channelName}>{channel.name}</span>
     </button>
   );
@@ -424,6 +487,11 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
   );
 }
 
+const IconLock = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+  </svg>
+);
 const IconBack = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="15 18 9 12 15 6" />

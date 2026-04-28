@@ -12,6 +12,7 @@ export interface Friend {
   avatar?: string | null;
   channelId: string;
   since: string;
+  isBlocked?: boolean;
 }
 export interface FriendRequest {
   id: string;
@@ -89,6 +90,22 @@ export default function FriendsPage() {
     } finally { setActionLoading(null); }
   }
 
+  async function blockFriend(userId: string) {
+    await fetch('/api/user/block', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId }),
+    });
+    fetchAll();
+  }
+
+  async function unblockFriend(userId: string) {
+    await fetch('/api/user/block', {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId }),
+    });
+    fetchAll();
+  }
+
   const tabCounts = { all: data.friends.length, received: data.received.length, sent: data.sent.length };
 
   if (!user) return <LoadingScreen />;
@@ -164,7 +181,7 @@ export default function FriendsPage() {
                 data.friends.length === 0
                   ? <Empty icon="👥" text="No friends yet" sub="Send a friend request to get started" />
                   : data.friends.map(f => (
-                    <FriendRow key={f.userId} friend={f} onMessage={() => router.push(`/messages/${f.channelId}`)} />
+                    <FriendRow key={f.userId} friend={f} onMessage={() => router.push(`/messages/${f.channelId}`)} onBlock={() => blockFriend(f.userId)} onUnblock={() => unblockFriend(f.userId)} />
                   ))
               ) : tab === 'received' ? (
                 data.received.length === 0
@@ -202,7 +219,7 @@ export default function FriendsPage() {
   );
 }
 
-function FriendRow({ friend, onMessage }: { friend: Friend; onMessage: () => void }) {
+function FriendRow({ friend, onMessage, onBlock, onUnblock }: { friend: Friend; onMessage: () => void; onBlock: () => void; onUnblock: () => void }) {
   return (
     <div style={styles.row}>
       <Avatar username={friend.username} avatar={friend.avatar} size={38} />
@@ -210,9 +227,22 @@ function FriendRow({ friend, onMessage }: { friend: Friend; onMessage: () => voi
         <span style={styles.rowName}>{friend.username}</span>
         {friend.bio && <span style={styles.rowSub}>{friend.bio}</span>}
       </div>
-      <button style={styles.msgBtn} onClick={onMessage} title="Send Message">
-        <IconMessage /> <span>Message</span>
-      </button>
+      <div style={styles.rowActions}>
+        {!friend.isBlocked && (
+          <button style={styles.msgBtn} onClick={onMessage} title="Send Message">
+            <IconMessage /> <span>Message</span>
+          </button>
+        )}
+        {friend.isBlocked ? (
+          <button style={{ ...styles.cancelBtn }} onClick={onUnblock} title="Unblock">
+            Unblock
+          </button>
+        ) : (
+          <button style={{ ...styles.declineBtn, fontSize: 12, padding: '6px 12px' }} onClick={onBlock} title="Block">
+            Block
+          </button>
+        )}
+      </div>
     </div>
   );
 }

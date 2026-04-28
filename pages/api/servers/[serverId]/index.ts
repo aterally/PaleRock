@@ -55,6 +55,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             pronouns: user?.pronouns || '',
             avatar: user?.avatar || null,
             mutedUntil: m.mutedUntil ? m.mutedUntil.toISOString() : null,
+            lastOnline: user?.lastOnline ? user.lastOnline.toISOString() : null,
           };
         }),
         bannedUsers: server.bannedUsers || [],
@@ -65,7 +66,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           type: ch.type,
           categoryId: ch.categoryId,
           position: ch.position,
-        })),
+          isPrivate: ch.isPrivate || false,
+          allowedRoles: ch.allowedRoles || [],
+        })).filter(ch => {
+          // Owner can see all channels
+          if (server.ownerId.equals(meId)) return true;
+          // Public channels are visible to all members
+          if (!ch.isPrivate) return true;
+          // Private channels: check member roles
+          const myMember = server.members.find((m: { userId: ObjectId }) => m.userId.equals(meId));
+          if (!myMember) return false;
+          const myRoleIds: string[] = (myMember as any).roles || [];
+          // Admin/manageChannels can always see
+          const isAdmin = (server.roles as any[]).some(r =>
+            (r.isDefault || myRoleIds.includes(r.id)) && (r.permissions?.administrator || r.permissions?.manageChannels)
+          );
+          if (isAdmin) return true;
+          // Check if any allowed role matches
+          return ch.allowedRoles.some((rid: string) => myRoleIds.includes(rid));
+        }),
       }
     });
   }

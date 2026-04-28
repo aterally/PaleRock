@@ -41,6 +41,32 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
   const [muteDuration, setMuteDuration] = useState('10');
   const [showRoleModal, setShowRoleModal] = useState<string | null>(null);
 
+  const [blockedUsers, setBlockedUsers] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    fetch('/api/user/block').then(r => r.ok ? r.json() : null).then(data => {
+      if (data) setBlockedUsers(new Set(data.blocked.map((u: { id: string }) => u.id)));
+    });
+  }, []);
+
+  async function blockUser(userId: string) {
+    await fetch('/api/user/block', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId }),
+    });
+    setBlockedUsers(prev => new Set([...prev, userId]));
+    setCtxMenu(null);
+  }
+
+  async function unblockUser(userId: string) {
+    await fetch('/api/user/block', {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId }),
+    });
+    setBlockedUsers(prev => { const next = new Set(prev); next.delete(userId); return next; });
+    setCtxMenu(null);
+  }
+
   const canKick = isOwner || hasPermission('kickMembers');
   const canBan = isOwner || hasPermission('banMembers');
   const canMute = isOwner || hasPermission('muteMembers');
@@ -199,6 +225,18 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
               Ban Member
             </button>
           )}
+          <div style={st.ctxDivider} />
+          {blockedUsers.has(ctxMenu.userId) ? (
+            <button style={{ ...st.ctxItem, color: '#23a55a' }} onClick={() => unblockUser(ctxMenu.userId)}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><polyline points="20 6 9 17 4 12"/></svg>
+              Unblock User
+            </button>
+          ) : (
+            <button style={{ ...st.ctxItem, color: '#ed4245' }} onClick={() => blockUser(ctxMenu.userId)}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+              Block User
+            </button>
+          )}
         </div>
       )}
 
@@ -244,6 +282,23 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
               <div style={{ marginTop: 10 }}>
                 <div style={st.profileSectionLabel}>JOINED SERVER</div>
                 <div style={st.profileDate}>{new Date(profileMember.joinedAt).toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                {profileMember.lastOnline && (() => {
+                  const online = (Date.now() - new Date(profileMember.lastOnline!).getTime()) < 5 * 60 * 1000;
+                  return (
+                    <div style={{ marginTop: 10 }}>
+                      <div style={st.profileSectionLabel}>LAST ONLINE</div>
+                      <div style={{ ...st.profileDate, display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <span style={{ width: 7, height: 7, borderRadius: '50%', background: online ? '#23a55a' : 'var(--text-3)', display: 'inline-block', flexShrink: 0 }} />
+                        {online ? 'Online now' : `${Math.floor((Date.now() - new Date(profileMember.lastOnline!).getTime()) / 60000) < 60
+                          ? `${Math.floor((Date.now() - new Date(profileMember.lastOnline!).getTime()) / 60000)}m ago`
+                          : Math.floor((Date.now() - new Date(profileMember.lastOnline!).getTime()) / 3600000) < 24
+                            ? `${Math.floor((Date.now() - new Date(profileMember.lastOnline!).getTime()) / 3600000)}h ago`
+                            : new Date(profileMember.lastOnline!).toLocaleDateString([], { month: 'short', day: 'numeric' })
+                        }`}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>
@@ -351,6 +406,21 @@ function MemberRow({ member, currentUserId, ownerId, roles, st, onCtx, onCtxTouc
   const nameColor = highestRole?.color || 'var(--text-2)';
   const isMuted = member.mutedUntil && new Date(member.mutedUntil).getTime() > Date.now();
 
+  // Online status: within last 5 minutes = online, otherwise show last seen
+  const isOnline = member.lastOnline && (Date.now() - new Date(member.lastOnline).getTime()) < 5 * 60 * 1000;
+
+  function lastSeenLabel(iso: string) {
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    if (days < 7) return `${days}d ago`;
+    return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' });
+  }
+
   function mutedLabel(mutedUntil: string) {
     const msLeft = new Date(mutedUntil).getTime() - Date.now();
     const totalMins = Math.ceil(msLeft / 60000);
@@ -367,11 +437,17 @@ function MemberRow({ member, currentUserId, ownerId, roles, st, onCtx, onCtxTouc
       {...longPress}
     >
       <div
-        style={{ cursor: 'pointer', flexShrink: 0 }}
+        style={{ cursor: 'pointer', flexShrink: 0, position: 'relative' }}
         onClick={(e) => onProfile(e, member)}
         title="View profile"
       >
         <Avatar username={member.username} avatar={member.avatar} size={34} />
+        <span style={{
+          position: 'absolute', bottom: 0, right: 0,
+          width: 10, height: 10, borderRadius: '50%',
+          background: isOnline ? '#23a55a' : 'var(--bg-3)',
+          border: '2px solid var(--bg-1)',
+        }} title={isOnline ? 'Online' : member.lastOnline ? `Last seen ${lastSeenLabel(member.lastOnline)}` : 'Offline'} />
       </div>
       <div style={st.memberInfo}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
