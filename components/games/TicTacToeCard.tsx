@@ -108,7 +108,7 @@ export default function TicTacToeCard({
   if (loading) {
     return (
       <div style={card}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#555', fontSize: 13 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-3)', fontSize: 13 }}>
           <span className="spinner" style={{ width: 12, height: 12 }} />
           Loading game…
         </div>
@@ -151,7 +151,7 @@ export default function TicTacToeCard({
         <p style={cardBody}>{otherUsername} wants to play Tic Tac Toe!</p>
         {timeLeft !== null && (
           <div style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 11, color: '#555', marginBottom: 4, fontFamily: "'Inter', system-ui, sans-serif" }}>
+            <div style={{ fontSize: 14, color: 'var(--text-3)', marginBottom: 4, fontFamily: 'var(--font-display)' }}>
               Auto-denying in {timeLeft}s
             </div>
             <div style={timerBar}>
@@ -218,7 +218,7 @@ export default function TicTacToeCard({
           {isMyTurn ? 'Your turn' : `${otherUsername}'s turn`}
         </span>
       </div>
-      <div style={{ fontSize: 11, color: '#505050', marginBottom: 10, fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <div style={{ fontSize: 14, color: 'var(--text-3)', marginBottom: 10, fontFamily: 'var(--font-display)' }}>
         You are <span style={{ color: mySymbol === 'X' ? '#e0e0e0' : '#a0a0a0', fontWeight: 600 }}>{mySymbol}</span>
         {' · '}
         {otherUsername} is <span style={{ color: theirSymbol === 'X' ? '#e0e0e0' : '#a0a0a0', fontWeight: 600 }}>{theirSymbol}</span>
@@ -258,7 +258,7 @@ function Board({ board, winningLine, onCell, mySymbol }: {
             style={{
               width: '100%',
               aspectRatio: '1',
-              background: isWin ? 'rgba(74,222,128,0.12)' : '#111',
+              background: isWin ? 'rgba(74,222,128,0.12)' : 'var(--bg-2)',
               border: `1px solid ${isWin ? 'rgba(74,222,128,0.4)' : '#222'}`,
               borderRadius: 6,
               fontSize: 22,
@@ -295,7 +295,7 @@ function getWinningLine(board: (string | null)[]): number[] | null {
 
 function IconGame() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, color: '#555' }}>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, color: 'var(--text-3)' }}>
       <line x1="8" y1="2" x2="8" y2="22" /><line x1="16" y1="2" x2="16" y2="22" />
       <line x1="2" y1="8" x2="22" y2="8" /><line x1="2" y1="16" x2="22" y2="16" />
     </svg>
@@ -319,7 +319,7 @@ function badge(color: 'yellow' | 'green' | 'red' | 'grey' | 'blue'): React.CSSPr
     background: c.bg,
     border: `1px solid ${c.border}`,
     color: c.color,
-    fontFamily: "'Inter', system-ui, sans-serif",
+    fontFamily: 'var(--font-display)',
     fontWeight: 600,
     letterSpacing: '0.05em',
     textTransform: 'uppercase',
@@ -328,13 +328,13 @@ function badge(color: 'yellow' | 'green' | 'red' | 'grey' | 'blue'): React.CSSPr
 }
 
 const card: React.CSSProperties = {
-  background: '#0e0e0e',
-  border: '1px solid #1e1e1e',
+  background: 'var(--bg-1)',
+  border: '1px solid var(--border)',
   borderRadius: 12,
   padding: '14px 16px',
-  minWidth: 220,
-  maxWidth: 260,
-  fontFamily: "'Inter', system-ui, sans-serif",
+  minWidth: 240,
+  maxWidth: 280,
+  fontFamily: 'var(--font-display)',
 };
 
 const cardHeader: React.CSSProperties = {
@@ -342,21 +342,21 @@ const cardHeader: React.CSSProperties = {
   alignItems: 'center',
   gap: 7,
   marginBottom: 10,
-  fontSize: 13,
-  fontWeight: 500,
-  color: '#707070',
+  fontSize: 14,
+  fontWeight: 600,
+  color: 'var(--text-3)',
 };
 
 const cardBody: React.CSSProperties = {
-  fontSize: 13,
-  color: '#555',
+  fontSize: 14,
+  color: 'var(--text-3)',
   margin: '0 0 12px',
   lineHeight: 1.5,
 };
 
 const timerBar: React.CSSProperties = {
   height: 2,
-  background: '#1a1a1a',
+  background: 'var(--bg-3)',
   borderRadius: 2,
   overflow: 'hidden',
   marginBottom: 12,
@@ -370,11 +370,11 @@ const timerFill: React.CSSProperties = {
 };
 
 const btn: React.CSSProperties = {
-  padding: '6px 14px',
-  fontSize: 12,
+  padding: '7px 14px',
+  fontSize: 14,
   borderRadius: 6,
   cursor: 'pointer',
-  fontFamily: "'Inter', system-ui, sans-serif",
+  fontFamily: 'var(--font-display)',
   fontWeight: 500,
   display: 'flex',
   alignItems: 'center',

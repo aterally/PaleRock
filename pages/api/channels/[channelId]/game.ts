@@ -28,7 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // POST /game — send a game invite
   if (req.method === 'POST') {
     const { type } = req.body;
-    if (!type || type !== 'tictactoe') return res.status(400).json({ error: 'Invalid game type' });
+    if (!type || !['tictactoe', 'connect4'].includes(type)) return res.status(400).json({ error: 'Invalid game type' });
 
     // Check no active/pending game already in this channel
     const existing = await db.collection('games').findOne({
@@ -49,7 +49,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       inviterId: meId,
       inviteeId: otherMemberId,
       status: 'pending',
-      board: Array(9).fill(null), // tictactoe: 9 cells
+      board: type === 'connect4' ? Array(42).fill(null) : Array(9).fill(null), // connect4: 6×7=42, tictactoe: 9
       turn: meId, // inviter goes first (X)
       winner: null,
       invitedAt: now,
@@ -131,10 +131,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (action === 'move') {
       if (game.status !== 'active') return res.status(409).json({ error: 'Game is not active' });
       if (!game.turn.equals(meId)) return res.status(403).json({ error: 'Not your turn' });
+
+      const isInviter = game.inviterId.equals(meId);
+
+      if (game.type === 'connect4') {
+        const COLS = 7, ROWS = 6;
+        if (typeof cellIndex !== 'number' || cellIndex < 0 || cellIndex >= COLS * ROWS) return res.status(400).json({ error: 'Invalid cell' });
+        if (game.board[cellIndex] !== null) return res.status(409).json({ error: 'Cell taken' });
+
+        const newBoard = [...game.board];
+        newBoard[cellIndex] = meId.toString(); // store userId as piece identifier
+
+        const winner = checkConnect4Winner(newBoard);
+        const isDraw = !winner && newBoard.every((c: string | null) => c !== null);
+        const newStatus = winner || isDraw ? 'finished' : 'active';
+        const winnerField = winner ? meId : null;
+        const nextTurn = isInviter ? game.inviteeId : game.inviterId;
+
+        await db.collection('games').updateOne(
+          { _id: new ObjectId(gameId) },
+          { $set: { board: newBoard, turn: newStatus === 'active' ? nextTurn : game.turn, status: newStatus, winner: winnerField, isDraw: isDraw } }
+        );
+        const gamePayload = { gameId, type: game.type, status: newStatus };
+        await db.collection('messages').updateOne(
+          { _id: game.messageId },
+          { $set: { content: `__GAME__:${JSON.stringify(gamePayload)}` } }
+        );
+        return res.status(200).json({ ok: true, board: newBoard, status: newStatus, winner: winnerField?.toString() || null, isDraw });
+      }
+
+      // tictactoe
       if (typeof cellIndex !== 'number' || cellIndex < 0 || cellIndex > 8) return res.status(400).json({ error: 'Invalid cell' });
       if (game.board[cellIndex] !== null) return res.status(409).json({ error: 'Cell taken' });
 
-      const isInviter = game.inviterId.equals(meId);
       const symbol = isInviter ? 'X' : 'O';
       const newBoard = [...game.board];
       newBoard[cellIndex] = symbol;
@@ -195,6 +224,39 @@ function checkWinner(board: (string | null)[]): string | null {
   ];
   for (const [a, b, c] of lines) {
     if (board[a] && board[a] === board[b] && board[a] === board[c]) return board[a];
+  }
+  return null;
+}
+
+function checkConnect4Winner(board: (string | null)[]): string | null {
+  const COLS = 7, ROWS = 6;
+  // Horizontal
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c <= COLS - 4; c++) {
+      const i = r * COLS + c;
+      if (board[i] && board[i] === board[i+1] && board[i] === board[i+2] && board[i] === board[i+3]) return board[i];
+    }
+  }
+  // Vertical
+  for (let r = 0; r <= ROWS - 4; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const i = r * COLS + c;
+      if (board[i] && board[i] === board[i+COLS] && board[i] === board[i+2*COLS] && board[i] === board[i+3*COLS]) return board[i];
+    }
+  }
+  // Diagonal ↘
+  for (let r = 0; r <= ROWS - 4; r++) {
+    for (let c = 0; c <= COLS - 4; c++) {
+      const i = r * COLS + c;
+      if (board[i] && board[i] === board[i+COLS+1] && board[i] === board[i+2*(COLS+1)] && board[i] === board[i+3*(COLS+1)]) return board[i];
+    }
+  }
+  // Diagonal ↙
+  for (let r = 0; r <= ROWS - 4; r++) {
+    for (let c = 3; c < COLS; c++) {
+      const i = r * COLS + c;
+      if (board[i] && board[i] === board[i+COLS-1] && board[i] === board[i+2*(COLS-1)] && board[i] === board[i+3*(COLS-1)]) return board[i];
+    }
   }
   return null;
 }

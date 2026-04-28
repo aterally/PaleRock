@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { User, Channel } from '@/pages/app';
 import { Avatar } from '@/components/Sidebar';
 import TicTacToeCard from '@/components/games/TicTacToeCard';
+import Connect4Card from '@/components/games/Connect4Card';
 
 interface Message {
   id: string;
@@ -246,65 +247,72 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
           rows={1}
           style={{ ...s.input, height: Math.min(140, Math.max(42, input.split('\n').length * 22 + 20)) }}
         />
-        {/* Game picker button */}
-        <div style={{ position: 'relative', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-          <button
-            title="Mini Games"
-            onClick={() => setShowGamePicker(v => !v)}
-            disabled={launchingGame}
-            style={{
-              width: 38, height: 38,
-              background: showGamePicker ? '#1a1a1a' : 'transparent',
-              border: '1px solid ' + (showGamePicker ? '#2a2a2a' : '#1e1e1e'),
-              borderRadius: '50%',
-              cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#444',
-              transition: 'all 0.15s',
-              flexShrink: 0,
-            }}
-          >
-            {launchingGame
-              ? <span className="spinner" style={{ width: 12, height: 12 }} />
-              : <IconGamepad />}
-          </button>
-          {/* Game picker panel */}
-          {showGamePicker && (
-            <div style={{
-              position: 'absolute', bottom: 46, right: 0,
-              background: '#111', border: '1px solid #1e1e1e',
-              borderRadius: 12, padding: 12, minWidth: 200,
-              boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
-              zIndex: 200,
-            }}>
-              <div style={{ fontSize: 10, color: '#333', fontFamily: "'Inter', system-ui, sans-serif", fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10, paddingBottom: 8, borderBottom: '1px solid #1a1a1a' }}>
-                Mini Games
+          {/* Game picker button */}
+          <div style={{ position: 'relative', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+            <button
+              title="Mini Games"
+              onClick={() => setShowGamePicker(v => !v)}
+              disabled={launchingGame}
+              style={{
+                width: 38, height: 38,
+                background: showGamePicker ? 'var(--bg-3)' : 'transparent',
+                border: '1px solid ' + (showGamePicker ? 'var(--border-bright)' : 'var(--border)'),
+                borderRadius: 'var(--radius-md)',
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: showGamePicker ? 'var(--text-2)' : 'var(--text-3)',
+                transition: 'all 0.15s',
+                flexShrink: 0,
+              }}
+            >
+              {launchingGame
+                ? <span className="spinner" style={{ width: 12, height: 12 }} />
+                : <IconGamepad />}
+            </button>
+            {/* Game picker panel */}
+            {showGamePicker && (
+              <div style={{
+                position: 'absolute', bottom: 46, right: 0,
+                background: 'var(--bg-2)', border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-md)', padding: '6px',
+                minWidth: 220,
+                boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                zIndex: 200,
+              }}>
+                <div style={{
+                  fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-display)',
+                  fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase',
+                  padding: '8px 12px 6px', borderBottom: '1px solid var(--border)',
+                  marginBottom: 4,
+                }}>
+                  Mini Games
+                </div>
+                {GAMES.map(game => (
+                  <button
+                    key={game.id}
+                    onClick={() => sendGame(game.id)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 12,
+                      width: '100%', padding: '10px 12px',
+                      background: 'none', border: 'none',
+                      borderRadius: 'var(--radius)', cursor: 'pointer',
+                      color: 'var(--text-2)', textAlign: 'left',
+                      transition: 'background 0.1s',
+                      fontFamily: 'var(--font-display)',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-3)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                  >
+                    <span style={{ fontSize: 18, lineHeight: 1, color: 'var(--text-3)', flexShrink: 0 }}>{game.icon}</span>
+                    <div>
+                      <div style={{ fontSize: 14, fontFamily: 'var(--font-display)', fontWeight: 600, letterSpacing: '0.02em' }}>{game.name}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-display)', marginTop: 1 }}>{game.desc}</div>
+                    </div>
+                  </button>
+                ))}
               </div>
-              {GAMES.map(game => (
-                <button
-                  key={game.id}
-                  onClick={() => sendGame(game.id)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    width: '100%', padding: '9px 8px',
-                    background: 'none', border: 'none',
-                    borderRadius: 8, cursor: 'pointer',
-                    color: '#c0c0c0', textAlign: 'left',
-                    transition: 'background 0.1s',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = '#181818')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-                >
-                  <span style={{ fontSize: 20, lineHeight: 1 }}>{game.emoji}</span>
-                  <div>
-                    <div style={{ fontSize: 13, fontFamily: "'Inter', system-ui, sans-serif", fontWeight: 500 }}>{game.name}</div>
-                    <div style={{ fontSize: 11, color: '#404040', fontFamily: "'Inter', system-ui, sans-serif", fontWeight: 300, marginTop: 1 }}>{game.desc}</div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+            )}
+          </div>
         <button
           onClick={sendMessage}
           disabled={!input.trim() || sending}
@@ -478,13 +486,14 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
               let gameInfo: { gameId: string; type: string; status: string } | null = null;
               try { gameInfo = JSON.parse(m.content.slice('__GAME__:'.length)); } catch {}
               if (gameInfo) {
+                const GameCard = gameInfo.type === 'connect4' ? Connect4Card : TicTacToeCard;
                 return (
                   <div key={m.id}
                     onTouchStart={handleTouchStart}
                     onTouchEnd={handleTouchEnd}
                     onTouchMove={handleTouchEnd}
                   >
-                    <TicTacToeCard
+                    <GameCard
                       gameId={gameInfo.gameId}
                       channelId={channelId}
                       currentUserId={currentUserId}
@@ -597,7 +606,8 @@ const IconGamepad = () => (
 );
 
 const GAMES = [
-  { id: 'tictactoe', name: 'Tic Tac Toe', emoji: '⬜', desc: '2-player · Classic 3×3 grid' },
+  { id: 'tictactoe', name: 'Tic Tac Toe', icon: '✕', desc: '2-player · Classic 3×3 grid' },
+  { id: 'connect4',  name: 'Connect 4',   icon: '●', desc: '2-player · Drop pieces, align 4' },
 ];
 
 const s: Record<string, React.CSSProperties> = {
