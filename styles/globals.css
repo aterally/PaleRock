@@ -2,22 +2,22 @@
 
 :root {
   --bg: #000000;
-  --bg-1: #0a0a0a;
-  --bg-2: #111111;
-  --bg-3: #1a1a1a;
-  --bg-4: #222222;
-  --border: #2a2a2a;
-  --border-bright: #3a3a3a;
+  --bg-1: #0d0d0d;
+  --bg-2: #161616;
+  --bg-3: #202020;
+  --bg-4: #2a2a2a;
+  --border: #333333;
+  --border-bright: #4a4a4a;
   --text: #ffffff;
-  --text-2: #aaaaaa;
-  --text-3: #666666;
+  --text-2: #cccccc;
+  --text-3: #999999;
   --accent: #ffffff;
-  --accent-dim: rgba(255,255,255,0.08);
-  --accent-hover: rgba(255,255,255,0.12);
-  --danger: #ff3333;
-  --danger-dim: rgba(255,51,51,0.1);
-  --success: #33ff99;
-  --success-dim: rgba(51,255,153,0.1);
+  --accent-dim: rgba(255,255,255,0.10);
+  --accent-hover: rgba(255,255,255,0.16);
+  --danger: #ff4444;
+  --danger-dim: rgba(255,68,68,0.15);
+  --success: #44ffaa;
+  --success-dim: rgba(68,255,170,0.15);
   --radius: 2px;
   --radius-md: 4px;
   --sidebar-width: 260px;
@@ -140,10 +140,36 @@ input, textarea {
 .spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid var(--border);
+  border: 1.5px solid var(--border-bright);
   border-top-color: var(--text);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
+}
+
+/* Full-page loader — consistent with the initial Palerock loading screen */
+.palerock-loader {
+  height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  flex-direction: column;
+  gap: 20px;
+}
+.palerock-loader__ring {
+  width: 32px;
+  height: 32px;
+  border: 1.5px solid #333;
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+.palerock-loader__text {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: #999;
+  text-transform: uppercase;
 }
 
 /* Typography */
@@ -198,10 +224,10 @@ select option {
 
 /* Danger CSS variable supplement */
 :root {
-  --danger: #ff3333;
-  --danger-dim: rgba(255,51,51,0.08);
-  --success-dim: rgba(51,255,153,0.08);
-  --bg-4: #222222;
+  --danger: #ff4444;
+  --danger-dim: rgba(255,68,68,0.15);
+  --success-dim: rgba(68,255,170,0.15);
+  --bg-4: #2a2a2a;
 }
 
 /* ============================================================
@@ -390,8 +416,8 @@ select option {
 .lp-menu {
   position: fixed;
   z-index: 9999;
-  background: #1a1a1a;
-  border: 1px solid #2a2a2a;
+  background: #1e1e1e;
+  border: 1px solid #3a3a3a;
   border-radius: 10px;
   overflow: hidden;
   box-shadow: 0 8px 32px rgba(0,0,0,0.7);
@@ -410,7 +436,7 @@ select option {
   padding: 12px 16px;
   background: none;
   border: none;
-  color: #d0d0d0;
+  color: #e0e0e0;
   font-family: 'Cormorant Garamond', Georgia, serif;
   font-size: 15px;
   font-weight: 400;
@@ -419,20 +445,20 @@ select option {
   letter-spacing: 0.01em;
 }
 .lp-menu button:active {
-  background: rgba(255,255,255,0.05);
+  background: rgba(255,255,255,0.07);
 }
 .lp-menu button.danger {
-  color: #ed4245;
+  color: #ff6b6b;
 }
 .lp-menu hr {
   border: none;
-  border-top: 1px solid #2a2a2a;
+  border-top: 1px solid #3a3a3a;
   margin: 0;
 }
 
 /* Game button hover */
 .game-btn:hover {
-  background: #1a1a1a !important;
-  border-color: #2a2a2a !important;
-  color: #888 !important;
+  background: #202020 !important;
+  border-color: #3a3a3a !important;
+  color: #aaaaaa !important;
 }

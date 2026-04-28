@@ -53,8 +53,9 @@ export default function AuthPage() {
   }
 
   if (checking) return (
-    <div style={{ height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000' }}>
-      <div className="spinner" />
+    <div className="palerock-loader">
+      <div className="palerock-loader__ring" />
+      <span className="palerock-loader__text">PALEROCK</span>
     </div>
   );
 

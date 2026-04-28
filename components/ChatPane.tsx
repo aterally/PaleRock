@@ -365,6 +365,7 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
             inputRef.current?.focus();
             setCtxMenu(null);
           }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
             <span>Reply</span>
           </button>
           {ctxMenu.msg.senderId === currentUser.id && (
@@ -374,6 +375,7 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
                 if (confirm('Delete this message?')) deleteMessage(ctxMenu.msg.id);
                 setCtxMenu(null);
               }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
                 <span>Delete</span>
               </button>
             </>
@@ -563,8 +565,8 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
                   whiteSpace: 'pre-wrap',
                   letterSpacing: '0.01em',
                   animation: 'fadeIn 0.12s ease',
-                  background: isMe ? '#efefef' : '#141414',
-                  color: isMe ? '#0d0d0d' : '#d8d8d8',
+                  background: isMe ? '#e8e8e8' : '#1c1c1c',
+                  color: isMe ? '#0d0d0d' : '#e8e8e8',
                   marginBottom: last ? 0 : 2,
                   borderRadius: isMe
                     ? `${first ? r : t}px ${t}px ${t}px ${last ? r : t}px`
@@ -577,21 +579,25 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
                 {/* Hover action buttons */}
                 <div className="msg-actions" style={{
                   position: 'absolute', top: -2,
-                  ...(isMe ? { left: -72 } : { right: -72 }),
+                  ...(isMe ? { left: -60 } : { right: -60 }),
                   display: 'flex', gap: 4, opacity: 0,
                   transition: 'opacity 0.1s',
                 }}>
                   <button
                     title="Reply"
                     onClick={() => onReply?.(m)}
-                    style={{ padding: '3px 7px', fontSize: 11, border: '1px solid var(--border)', borderRadius: 4, background: 'var(--bg-2)', color: 'var(--text-2)', cursor: 'pointer' }}
-                  >Reply</button>
+                    style={{ padding: '4px 6px', border: '1px solid var(--border)', borderRadius: 4, background: 'var(--bg-2)', color: 'var(--text-2)', cursor: 'pointer', display: 'flex', alignItems: 'center', lineHeight: 1 }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+                  </button>
                   {m.senderId === currentUserId && (
                     <button
                       title="Delete"
                       onClick={() => { if (confirm('Delete this message?')) onDelete?.(m.id); }}
-                      style={{ padding: '3px 7px', fontSize: 11, border: '1px solid rgba(237,66,69,0.3)', borderRadius: 4, background: 'rgba(237,66,69,0.08)', color: '#ed4245', cursor: 'pointer' }}
-                    >Del</button>
+                      style={{ padding: '4px 6px', border: '1px solid rgba(237,66,69,0.35)', borderRadius: 4, background: 'rgba(237,66,69,0.12)', color: '#ff6b6b', cursor: 'pointer', display: 'flex', alignItems: 'center', lineHeight: 1 }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                    </button>
                   )}
                 </div>
               </div>
@@ -735,11 +741,11 @@ const s: Record<string, React.CSSProperties> = {
   dateLine: {
     flex: 1,
     height: 1,
-    background: '#161616',
+    background: '#2a2a2a',
   },
   dateLabel: {
     fontSize: 10,
-    color: '#353535',
+    color: '#888888',
     fontFamily: "'Cormorant Garamond', Georgia, serif",
     fontWeight: 400,
     fontStyle: 'italic',
@@ -748,33 +754,33 @@ const s: Record<string, React.CSSProperties> = {
   },
   metaName: {
     fontSize: 11,
-    color: '#404040',
+    color: '#bbbbbb',
     fontFamily: "'Inter', system-ui, sans-serif",
     fontWeight: 500,
     letterSpacing: '0.02em',
   },
   metaTime: {
     fontSize: 10,
-    color: '#2e2e2e',
+    color: '#888888',
     fontFamily: "'Inter', system-ui, sans-serif",
     fontWeight: 300,
   },
   inputRow: {
     padding: '12px 32px 18px',
-    borderTop: '1px solid #141414',
+    borderTop: '1px solid var(--border)',
     display: 'flex',
     alignItems: 'flex-end',
     gap: 10,
-    background: '#0a0a0a',
+    background: 'var(--bg-1)',
     flexShrink: 0,
   },
   input: {
     flex: 1,
-    background: '#111',
-    border: '1px solid #1e1e1e',
+    background: 'var(--bg-2)',
+    border: '1px solid var(--border)',
     borderRadius: 12,
     padding: '10px 16px',
-    color: '#d0d0d0',
+    color: '#e8e8e8',
     resize: 'none',
     outline: 'none',
     fontSize: 14,

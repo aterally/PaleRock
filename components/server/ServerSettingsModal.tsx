@@ -588,7 +588,7 @@ function InvitesTab({ server }: { server: ServerData }) {
       )}
 
       {loading ? (
-        <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: 13, padding: '32px 0' }}>Loading…</div>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '32px 0' }}><span className="spinner" style={{ width: 18, height: 18 }} /></div>
       ) : invites.length === 0 ? (
         <div style={{ ...s.card, textAlign: 'center', padding: '32px 16px' }}>
           <div style={{ fontSize: 24, marginBottom: 8 }}>⊕</div>
@@ -656,7 +656,7 @@ function BannedTab({ server, hasPermission, onUpdate }: { server: ServerData; ha
     <div style={s.tabContent}>
       <SectionHeader title="Banned Users" subtitle={`${bans.length} banned user${bans.length !== 1 ? 's' : ''}`} />
       {loading ? (
-        <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: 13, padding: '32px 0' }}>Loading…</div>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '32px 0' }}><span className="spinner" style={{ width: 18, height: 18 }} /></div>
       ) : bans.length === 0 ? (
         <div style={{ ...s.card, textAlign: 'center', padding: '32px 16px' }}>
           <div style={{ fontSize: 24, marginBottom: 8 }}>⊘</div>

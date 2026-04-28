@@ -73,9 +73,10 @@ export default function ServerChatPane({
     const r = await fetch(`/api/servers/${server.id}/messages/${channel.id}`);
     if (r.ok) {
       const data = await r.json();
-      setMessages(data.messages);
-      if (data.messages.length > 0) {
-        lastIdRef.current = data.messages[data.messages.length - 1].id;
+      const msgs = data.messages || [];
+      setMessages(msgs);
+      if (msgs.length > 0) {
+        lastIdRef.current = msgs[msgs.length - 1].id;
       }
     }
     setLoading(false);
@@ -100,9 +101,10 @@ export default function ServerChatPane({
       const r = await fetch(`/api/servers/${server.id}/poll/${channel.id}?after=${lastIdRef.current}`);
       if (r.ok) {
         const data = await r.json();
-        if (data.messages.length > 0) {
-          setMessages(prev => [...prev, ...data.messages]);
-          lastIdRef.current = data.messages[data.messages.length - 1].id;
+        const msgs = data.messages || [];
+        if (msgs.length > 0) {
+          setMessages(prev => [...prev, ...msgs]);
+          lastIdRef.current = msgs[msgs.length - 1].id;
         }
       }
     }, 2000);
@@ -186,7 +188,7 @@ export default function ServerChatPane({
       <div style={styles.messageArea}>
         {loading ? (
           <div style={styles.loadingState}>
-            <span style={styles.loadingText}>LOADING MESSAGES</span>
+            <span className="spinner" style={{ width: 18, height: 18 }} />
           </div>
         ) : messages.length === 0 ? (
           <div style={styles.emptyState}>
@@ -262,10 +264,14 @@ export default function ServerChatPane({
                         <p style={styles.messageText}>{msg.content}</p>
                         <div className="msg-actions" style={{ position: 'absolute', top: 0, right: 0, display: 'flex', gap: 4, opacity: 0, transition: 'opacity 0.1s' }}>
                           <button title="Reply" onClick={() => { setReplyTo({ id: msg.id, authorUsername: msg.authorUsername, content: msg.content }); inputRef.current?.focus(); }}
-                            style={{ padding: '2px 6px', fontSize: 11, border: '1px solid var(--border)', borderRadius: 4, background: 'var(--bg-2)', color: 'var(--text-2)', cursor: 'pointer' }}>Reply</button>
+                            style={{ padding: '4px 6px', border: '1px solid var(--border)', borderRadius: 4, background: 'var(--bg-2)', color: 'var(--text-2)', cursor: 'pointer', display: 'flex', alignItems: 'center', lineHeight: 1 }}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+                          </button>
                           {(msg.authorId === currentUser.id || isOwner || hasPermission('manageMessages')) && (
                             <button title="Delete" onClick={() => { if (confirm('Delete?')) deleteMessage(msg.id); }}
-                              style={{ padding: '2px 6px', fontSize: 11, border: '1px solid rgba(237,66,69,0.3)', borderRadius: 4, background: 'rgba(237,66,69,0.08)', color: '#ed4245', cursor: 'pointer' }}>Del</button>
+                              style={{ padding: '4px 6px', border: '1px solid rgba(237,66,69,0.35)', borderRadius: 4, background: 'rgba(237,66,69,0.12)', color: '#ff6b6b', cursor: 'pointer', display: 'flex', alignItems: 'center', lineHeight: 1 }}>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                            </button>
                           )}
                         </div>
                       </div>
@@ -291,6 +297,7 @@ export default function ServerChatPane({
             inputRef.current?.focus();
             setCtxMenu(null);
           }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
             <span>Reply</span>
           </button>
           {(ctxMenu.msg.authorId === currentUser.id || isOwner || hasPermission('manageMessages')) && (
@@ -300,6 +307,7 @@ export default function ServerChatPane({
                 if (confirm('Delete?')) deleteMessage(ctxMenu.msg.id);
                 setCtxMenu(null);
               }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
                 <span>Delete</span>
               </button>
             </>

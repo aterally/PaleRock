@@ -100,7 +100,7 @@ export default function ServerPage() {
   // If no channelId in URL, redirect to first channel
   useEffect(() => {
     if (!server || channelId) return;
-    const firstChannel = server.channels[0];
+    const firstChannel = server.channels && server.channels.length > 0 ? server.channels[0] : null;
     if (firstChannel) {
       router.replace(`/servers/${server.id}/${firstChannel.id}`, undefined, { shallow: false });
     }
@@ -127,13 +127,9 @@ export default function ServerPage() {
 
   if (loading || !user) {
     return (
-      <div style={{ height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-          <div className="spinner" style={{ width: 24, height: 24 }} />
-          <span style={{ fontFamily: 'var(--font-display)', fontSize: 11, letterSpacing: '0.15em', color: 'var(--text-3)' }}>
-            LOADING
-          </span>
-        </div>
+      <div className="palerock-loader">
+        <div className="palerock-loader__ring" />
+        <span className="palerock-loader__text">PALEROCK</span>
       </div>
     );
   }

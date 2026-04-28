@@ -318,7 +318,7 @@ const styles: Record<string, React.CSSProperties> = {
     width: 56,
     minWidth: 56,
     height: '100dvh',
-    background: '#050505',
+    background: 'var(--bg-1)',
     borderRight: '1px solid var(--border)',
     display: 'flex',
     flexDirection: 'column',

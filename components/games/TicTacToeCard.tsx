@@ -263,7 +263,7 @@ function Board({ board, winningLine, onCell, mySymbol }: {
               borderRadius: 6,
               fontSize: 22,
               fontWeight: 700,
-              color: !cell ? 'transparent' : isMine ? '#e0e0e0' : '#505050',
+              color: !cell ? 'transparent' : isMine ? '#e8e8e8' : '#aaaaaa',
               cursor: isEmpty && onCell ? 'pointer' : 'default',
               display: 'flex',
               alignItems: 'center',
@@ -272,7 +272,7 @@ function Board({ board, winningLine, onCell, mySymbol }: {
               fontFamily: "'Cormorant Garamond', Georgia, serif",
             }}
           >
-            {cell || (isEmpty && onCell ? <span style={{ color: '#1e1e1e', fontSize: 14 }}>·</span> : '')}
+            {cell || (isEmpty && onCell ? <span style={{ color: '#444444', fontSize: 14 }}>·</span> : '')}
           </button>
         );
       })}

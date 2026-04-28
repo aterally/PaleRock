@@ -123,7 +123,7 @@ function PixelAvatarEditor({ initialPixels, onSave, onCancel }: {
                   key={r * GRID + c}
                   style={{
                     width: CELL, height: CELL,
-                    background: color === 'transparent' ? ((r + c) % 2 === 0 ? '#1a1a1a' : '#222222') : color,
+                    background: color === 'transparent' ? ((r + c) % 2 === 0 ? '#252525' : '#333333') : color,
                     boxSizing: 'border-box',
                     borderRight: c % 4 === 3 ? '1px solid rgba(255,255,255,0.05)' : 'none',
                     borderBottom: r % 4 === 3 ? '1px solid rgba(255,255,255,0.05)' : 'none',
