@@ -13,6 +13,7 @@ export interface Friend {
   channelId: string;
   since: string;
   isBlocked?: boolean;
+  lastOnline?: string | null;
 }
 export interface FriendRequest {
   id: string;
@@ -220,12 +221,33 @@ export default function FriendsPage() {
 }
 
 function FriendRow({ friend, onMessage, onBlock, onUnblock }: { friend: Friend; onMessage: () => void; onBlock: () => void; onUnblock: () => void }) {
+  const isOnline = friend.lastOnline && (Date.now() - new Date(friend.lastOnline).getTime()) < 5 * 60 * 1000;
+  const lastSeenLabel = (() => {
+    if (!friend.lastOnline) return 'Offline';
+    if (isOnline) return 'Online';
+    const diff = Date.now() - new Date(friend.lastOnline).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+  })();
   return (
     <div style={styles.row}>
-      <Avatar username={friend.username} avatar={friend.avatar} size={38} />
+      <div style={{ position: 'relative', flexShrink: 0 }}>
+        <Avatar username={friend.username} avatar={friend.avatar} size={38} />
+        <span style={{
+          position: 'absolute', bottom: 0, right: 0,
+          width: 11, height: 11, borderRadius: '50%',
+          background: isOnline ? '#23a55a' : 'var(--bg-3)',
+          border: '2px solid var(--bg-2)',
+        }} />
+      </div>
       <div style={styles.rowInfo}>
         <span style={styles.rowName}>{friend.username}</span>
-        {friend.bio && <span style={styles.rowSub}>{friend.bio}</span>}
+        <span style={{ fontSize: 11, color: isOnline ? '#23a55a' : 'var(--text-3)', fontFamily: 'var(--font-display)' }}>
+          {lastSeenLabel}
+        </span>
       </div>
       <div style={styles.rowActions}>
         {!friend.isBlocked && (

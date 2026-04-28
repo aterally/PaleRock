@@ -68,6 +68,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           position: ch.position,
           isPrivate: ch.isPrivate || false,
           allowedRoles: ch.allowedRoles || [],
+          allowedMembers: ch.allowedMembers || [],
         })).filter(ch => {
           // Owner can see all channels
           if (server.ownerId.equals(meId)) return true;
@@ -77,11 +78,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           const myMember = server.members.find((m: { userId: ObjectId }) => m.userId.equals(meId));
           if (!myMember) return false;
           const myRoleIds: string[] = (myMember as any).roles || [];
+          const myUserId = meId.toString();
           // Admin/manageChannels can always see
           const isAdmin = (server.roles as any[]).some(r =>
             (r.isDefault || myRoleIds.includes(r.id)) && (r.permissions?.administrator || r.permissions?.manageChannels)
           );
           if (isAdmin) return true;
+          // Check if explicitly allowed as a member
+          if (ch.allowedMembers.includes(myUserId)) return true;
           // Check if any allowed role matches
           return ch.allowedRoles.some((rid: string) => myRoleIds.includes(rid));
         }),

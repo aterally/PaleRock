@@ -19,17 +19,29 @@ export default function ServerSidebar({
 }: Props) {
   const router = useRouter();
   const [showCreateChannel, setShowCreateChannel] = useState(false);
+  const [createChannelStep, setCreateChannelStep] = useState<1 | 2>(1);
   const [showCreateCategory, setShowCreateCategory] = useState(false);
   const [newChannelName, setNewChannelName] = useState('');
   const [newChannelCategory, setNewChannelCategory] = useState('');
   const [newChannelPrivate, setNewChannelPrivate] = useState(false);
   const [newChannelAllowedRoles, setNewChannelAllowedRoles] = useState<string[]>([]);
+  const [newChannelAllowedMembers, setNewChannelAllowedMembers] = useState<string[]>([]);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteCode, setInviteCode] = useState('');
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; type: 'channel' | 'category'; id: string } | null>(null);
   const [dragging, setDragging] = useState<{ type: 'channel' | 'category'; id: string } | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
+
+  function openCreateChannel() {
+    setNewChannelName(''); setNewChannelCategory(''); setNewChannelPrivate(false);
+    setNewChannelAllowedRoles([]); setNewChannelAllowedMembers([]);
+    setCreateChannelStep(1); setShowCreateChannel(true);
+  }
+
+  function closeCreateChannel() {
+    setShowCreateChannel(false); setCreateChannelStep(1);
+  }
 
   async function createChannel() {
     if (!newChannelName.trim()) return;
@@ -40,11 +52,12 @@ export default function ServerSidebar({
         categoryId: newChannelCategory || null,
         isPrivate: newChannelPrivate,
         allowedRoles: newChannelAllowedRoles,
+        allowedMembers: newChannelAllowedMembers,
       }),
     });
     if (r.ok) {
       const data = await r.json();
-      setShowCreateChannel(false); setNewChannelName(''); setNewChannelPrivate(false); setNewChannelAllowedRoles([]);
+      closeCreateChannel();
       onServerUpdate(); onChannelSelect(data.channel.id);
     }
   }
@@ -247,7 +260,7 @@ export default function ServerSidebar({
         {/* Add channel / category buttons */}
         {canManageChannels && (
           <div style={styles.addRow}>
-            <button style={styles.addBtn} onClick={() => setShowCreateChannel(true)}>
+            <button style={styles.addBtn} onClick={openCreateChannel}>
               <IconPlus /> <span>Add Channel</span>
             </button>
             <button style={styles.addBtn} onClick={() => setShowCreateCategory(true)}>
@@ -287,62 +300,157 @@ export default function ServerSidebar({
         </div>
       )}
 
-      {/* Create channel modal */}
+      {/* Create channel modal — 2 steps */}
       {showCreateChannel && (
-        <Modal title="CREATE CHANNEL" onClose={() => setShowCreateChannel(false)}>
-          <label style={styles.label}>CHANNEL NAME</label>
-          <input style={styles.input} placeholder="general" value={newChannelName} onChange={e => setNewChannelName(e.target.value)} onKeyDown={e => e.key === 'Enter' && createChannel()} autoFocus />
-          <label style={styles.label}>CATEGORY (optional)</label>
-          <select style={styles.input} value={newChannelCategory} onChange={e => setNewChannelCategory(e.target.value)}>
-            <option value="">No category</option>
-            {server.categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
-          </select>
-          <label style={{ ...styles.label, marginTop: 14 }}>PRIVATE CHANNEL</label>
-          <div
-            style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 13px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', cursor: 'pointer' }}
-            onClick={() => setNewChannelPrivate(v => !v)}
-          >
-            <div style={{
-              width: 36, height: 20, borderRadius: 10, background: newChannelPrivate ? 'var(--text)' : 'var(--bg-3)',
-              position: 'relative', transition: 'background 0.2s', flexShrink: 0,
-            }}>
-              <div style={{
-                position: 'absolute', top: 2, left: newChannelPrivate ? 18 : 2,
-                width: 16, height: 16, borderRadius: '50%', background: newChannelPrivate ? 'var(--bg)' : 'var(--text-3)',
-                transition: 'left 0.2s',
-              }} />
-            </div>
-            <span style={{ fontSize: 13, color: 'var(--text-2)', fontFamily: 'var(--font-display)' }}>
-              {newChannelPrivate ? 'Only selected roles can view' : 'Visible to all members'}
-            </span>
-          </div>
-          {newChannelPrivate && server.roles.filter(r => !r.isDefault).length > 0 && (
+        <Modal
+          title={createChannelStep === 1 ? 'CREATE CHANNEL' : 'SET PERMISSIONS'}
+          onClose={closeCreateChannel}
+        >
+          {createChannelStep === 1 ? (
             <>
-              <label style={{ ...styles.label, marginTop: 14 }}>ALLOWED ROLES</label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {server.roles.filter(r => !r.isDefault).map(role => (
-                  <div
-                    key={role.id}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', cursor: 'pointer' }}
-                    onClick={() => setNewChannelAllowedRoles(prev =>
-                      prev.includes(role.id) ? prev.filter(id => id !== role.id) : [...prev, role.id]
-                    )}
-                  >
-                    <div style={{
-                      width: 14, height: 14, borderRadius: 3, border: `2px solid ${role.color}`,
-                      background: newChannelAllowedRoles.includes(role.id) ? role.color : 'transparent',
-                      flexShrink: 0,
-                    }} />
-                    <span style={{ fontSize: 13, color: role.color, fontFamily: 'var(--font-display)' }}>{role.name}</span>
+              {/* Step 1: name, category, private toggle */}
+              <label style={styles.label}>CHANNEL NAME</label>
+              <input
+                style={styles.input} placeholder="general"
+                value={newChannelName}
+                onChange={e => setNewChannelName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { if (newChannelPrivate) setCreateChannelStep(2); else createChannel(); }}}
+                autoFocus
+              />
+              <label style={styles.label}>CATEGORY (optional)</label>
+              <select style={styles.input} value={newChannelCategory} onChange={e => setNewChannelCategory(e.target.value)}>
+                <option value="">No category</option>
+                {server.categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+              </select>
+              <label style={{ ...styles.label, marginTop: 14 }}>CHANNEL TYPE</label>
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 13px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', cursor: 'pointer' }}
+                onClick={() => setNewChannelPrivate(v => !v)}
+              >
+                <div style={{
+                  width: 36, height: 20, borderRadius: 10,
+                  background: newChannelPrivate ? 'var(--text)' : 'var(--bg-3)',
+                  position: 'relative', transition: 'background 0.2s', flexShrink: 0,
+                }}>
+                  <div style={{
+                    position: 'absolute', top: 2, left: newChannelPrivate ? 18 : 2,
+                    width: 16, height: 16, borderRadius: '50%',
+                    background: newChannelPrivate ? 'var(--bg)' : 'var(--text-3)',
+                    transition: 'left 0.2s',
+                  }} />
+                </div>
+                <div>
+                  <span style={{ fontSize: 13, color: 'var(--text-2)', fontFamily: 'var(--font-display)', display: 'block' }}>
+                    {newChannelPrivate ? '🔒 Private' : '# Public'}
+                  </span>
+                  <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-display)' }}>
+                    {newChannelPrivate ? 'Only selected roles & members can view' : 'Visible to all server members'}
+                  </span>
+                </div>
+              </div>
+              <div style={styles.modalActions}>
+                <button style={styles.cancelBtn} onClick={closeCreateChannel}>Cancel</button>
+                {newChannelPrivate ? (
+                  <button style={styles.confirmBtn} onClick={() => { if (newChannelName.trim()) setCreateChannelStep(2); }}>
+                    Next →
+                  </button>
+                ) : (
+                  <button style={styles.confirmBtn} onClick={createChannel}>Create</button>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Step 2: roles + members selection */}
+              <div style={{ marginBottom: 14 }}>
+                <p style={{ fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-display)', letterSpacing: '0.04em', margin: 0 }}>
+                  Choose who can access <strong style={{ color: 'var(--text-2)' }}>#{newChannelName}</strong>. Admins always have access.
+                </p>
+              </div>
+
+              {/* Roles section */}
+              {server.roles.filter(r => !r.isDefault).length > 0 && (
+                <>
+                  <label style={styles.label}>ROLES</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 14 }}>
+                    {server.roles.filter(r => !r.isDefault).map(role => {
+                      const checked = newChannelAllowedRoles.includes(role.id);
+                      return (
+                        <div
+                          key={role.id}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px',
+                            background: checked ? `${role.color}14` : 'var(--bg)',
+                            border: `1px solid ${checked ? role.color + '55' : 'var(--border)'}`,
+                            borderRadius: 'var(--radius)', cursor: 'pointer', transition: 'all 0.15s',
+                          }}
+                          onClick={() => setNewChannelAllowedRoles(prev =>
+                            prev.includes(role.id) ? prev.filter(id => id !== role.id) : [...prev, role.id]
+                          )}
+                        >
+                          <div style={{
+                            width: 14, height: 14, borderRadius: 3, border: `2px solid ${role.color}`,
+                            background: checked ? role.color : 'transparent', flexShrink: 0, transition: 'background 0.15s',
+                          }} />
+                          <span style={{ fontSize: 13, color: role.color, fontFamily: 'var(--font-display)', fontWeight: 600 }}>
+                            {role.name}
+                          </span>
+                          <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-display)', marginLeft: 'auto' }}>
+                            role
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
-                ))}
+                </>
+              )}
+
+              {/* Members section */}
+              <label style={styles.label}>MEMBERS</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 200, overflowY: 'auto' }}>
+                {server.members
+                  .filter(m => m.userId !== server.ownerId) // owner always has access
+                  .map(m => {
+                    const checked = newChannelAllowedMembers.includes(m.userId);
+                    return (
+                      <div
+                        key={m.userId}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
+                          background: checked ? 'rgba(255,255,255,0.06)' : 'var(--bg)',
+                          border: `1px solid ${checked ? 'rgba(255,255,255,0.2)' : 'var(--border)'}`,
+                          borderRadius: 'var(--radius)', cursor: 'pointer', transition: 'all 0.15s',
+                        }}
+                        onClick={() => setNewChannelAllowedMembers(prev =>
+                          prev.includes(m.userId) ? prev.filter(id => id !== m.userId) : [...prev, m.userId]
+                        )}
+                      >
+                        <div style={{
+                          width: 14, height: 14, borderRadius: 3, border: '2px solid var(--text-3)',
+                          background: checked ? 'var(--text)' : 'transparent', flexShrink: 0, transition: 'background 0.15s',
+                        }} />
+                        <span style={{ fontSize: 13, color: 'var(--text-2)', fontFamily: 'var(--font-display)', fontWeight: 500 }}>
+                          {m.nickname || m.username}
+                        </span>
+                        {m.nickname && (
+                          <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-display)' }}>
+                            {m.username}
+                          </span>
+                        )}
+                        <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-display)', marginLeft: 'auto' }}>
+                          member
+                        </span>
+                      </div>
+                    );
+                  })}
+              </div>
+
+              <div style={{ ...styles.modalActions, marginTop: 18 }}>
+                <button style={styles.cancelBtn} onClick={() => setCreateChannelStep(1)}>← Back</button>
+                <button style={styles.confirmBtn} onClick={createChannel}>Create Channel</button>
               </div>
             </>
           )}
-          <div style={styles.modalActions}>
-            <button style={styles.cancelBtn} onClick={() => setShowCreateChannel(false)}>Cancel</button>
-            <button style={styles.confirmBtn} onClick={createChannel}>Create</button>
-          </div>
         </Modal>
       )}
 

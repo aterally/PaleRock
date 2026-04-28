@@ -182,14 +182,44 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
     setDmProfile({ senderId, senderUsername, senderAvatar, x, y });
   }
 
+  // Compute online status for DM header
+  const dmIsOnline = otherUser?.lastOnline && (Date.now() - new Date(otherUser.lastOnline).getTime()) < 5 * 60 * 1000;
+  const dmLastSeenLabel = (() => {
+    if (!otherUser?.lastOnline) return null;
+    if (dmIsOnline) return 'Online';
+    const diff = Date.now() - new Date(otherUser.lastOnline).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'Last seen just now';
+    if (mins < 60) return `Last seen ${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `Last seen ${hrs}h ago`;
+    return `Last seen ${Math.floor(hrs / 24)}d ago`;
+  })();
+
   return (
     <div style={s.pane} onClick={() => { setDmProfile(null); setCtxMenu(null); setShowGamePicker(false); }}>
       {/* Header */}
       <div style={s.header}>
-        {otherUser && <Avatar username={otherUser.username} avatar={otherUser.avatar} size={28} />}
+        {otherUser && (
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <Avatar username={otherUser.username} avatar={otherUser.avatar} size={28} />
+            <span style={{
+              position: 'absolute', bottom: 0, right: 0,
+              width: 9, height: 9, borderRadius: '50%',
+              background: dmIsOnline ? '#23a55a' : 'var(--bg-3)',
+              border: '2px solid var(--bg-2)',
+            }} />
+          </div>
+        )}
         <div>
           <div style={s.headerName}>{otherUser?.username || '…'}</div>
-          {otherUser?.bio && <div style={s.headerBio}>{otherUser.bio}</div>}
+          {dmLastSeenLabel ? (
+            <div style={{ fontSize: 11, color: dmIsOnline ? '#23a55a' : 'var(--text-3)', fontFamily: 'var(--font-display)', letterSpacing: '0.02em' }}>
+              {dmLastSeenLabel}
+            </div>
+          ) : otherUser?.bio ? (
+            <div style={s.headerBio}>{otherUser.bio}</div>
+          ) : null}
         </div>
       </div>
 

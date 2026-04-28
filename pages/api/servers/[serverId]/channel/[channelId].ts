@@ -46,6 +46,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (req.body.position !== undefined) updates.position = req.body.position;
     if (req.body.isPrivate !== undefined) updates.isPrivate = !!req.body.isPrivate;
     if (req.body.allowedRoles !== undefined) updates.allowedRoles = Array.isArray(req.body.allowedRoles) ? req.body.allowedRoles : [];
+    if (req.body.allowedMembers !== undefined) updates.allowedMembers = Array.isArray(req.body.allowedMembers) ? req.body.allowedMembers : [];
     await db.collection('serverChannels').updateOne({ _id: channelId, serverId }, { $set: updates });
     return res.status(200).json({ success: true });
   }

@@ -30,6 +30,7 @@ export interface ServerChannel {
   position: number;
   isPrivate: boolean;
   allowedRoles: string[];
+  allowedMembers: string[];
 }
 
 export interface ServerMember {

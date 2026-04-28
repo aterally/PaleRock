@@ -45,6 +45,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         username: other.username,
         bio: other.bio || '',
         avatar: other.avatar || null,
+        lastOnline: other.lastOnline ? other.lastOnline.toISOString() : null,
       } : null,
     };
   });

@@ -194,20 +194,40 @@ function NavItem({ label, active, onClick, icon, badge }: {
 function DmItem({ channel, active, onClick }: { channel: Channel; active: boolean; onClick: () => void }) {
   const other = channel.otherUser;
   if (!other) return null;
+  const isOnline = other.lastOnline && (Date.now() - new Date(other.lastOnline).getTime()) < 5 * 60 * 1000;
   return (
     <button onClick={onClick} style={{
       ...styles.dmItem,
       background: active ? 'var(--bg-3)' : 'transparent',
       color: active ? 'var(--text)' : 'var(--text-2)',
     }}>
-      <Avatar username={other.username} avatar={(other as any).avatar} size={24} />
+      <div style={{ position: 'relative', flexShrink: 0 }}>
+        <Avatar username={other.username} avatar={(other as any).avatar} size={24} />
+        <span style={{
+          position: 'absolute', bottom: -1, right: -1,
+          width: 8, height: 8, borderRadius: '50%',
+          background: isOnline ? '#23a55a' : 'var(--bg-3)',
+          border: '2px solid var(--bg-1)',
+        }} />
+      </div>
       <div style={{ flex: 1, overflow: 'hidden', textAlign: 'left' }}>
         <div style={{ fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-display)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {other.username}
         </div>
-        {channel.lastMessage && (
+        {channel.lastMessage ? (
           <div style={{ fontSize: 11, color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {channel.lastMessage.content.slice(0, 30)}{channel.lastMessage.content.length > 30 ? '…' : ''}
+          </div>
+        ) : (
+          <div style={{ fontSize: 11, color: isOnline ? '#23a55a' : 'var(--text-3)' }}>
+            {isOnline ? 'Online' : other.lastOnline ? (() => {
+              const diff = Date.now() - new Date(other.lastOnline!).getTime();
+              const mins = Math.floor(diff / 60000);
+              if (mins < 60) return `${mins}m ago`;
+              const hrs = Math.floor(mins / 60);
+              if (hrs < 24) return `${hrs}h ago`;
+              return `${Math.floor(hrs / 24)}d ago`;
+            })() : 'Offline'}
           </div>
         )}
       </div>

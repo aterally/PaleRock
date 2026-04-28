@@ -46,6 +46,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       channelId: ch._id.toString(),
       since: ch.createdAt,
       isBlocked: myBlockedIds.includes(other?._id.toString()),
+      lastOnline: other?.lastOnline ? other.lastOnline.toISOString() : null,
     };
   }).filter(f => f.userId);
 
