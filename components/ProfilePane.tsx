@@ -30,6 +30,7 @@ function PixelAvatarEditor({ initialPixels, onSave, onCancel }: {
   const [selectedColor, setSelectedColor] = useState('#ffffff');
   const [eraser, setEraser] = useState(false);
   const [painting, setPainting] = useState(false);
+  const gridRef = useRef<HTMLDivElement>(null);
 
   function paint(r: number, c: number) {
     setPixels(prev => {
@@ -55,13 +56,49 @@ function PixelAvatarEditor({ initialPixels, onSave, onCancel }: {
     setPixels(next);
   }
 
+  // Convert a clientX/clientY to grid cell coords
+  function clientToCell(clientX: number, clientY: number): [number, number] | null {
+    if (!gridRef.current) return null;
+    const rect = gridRef.current.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    const c = Math.floor(x / CELL);
+    const r = Math.floor(y / CELL);
+    if (r < 0 || r >= GRID || c < 0 || c >= GRID) return null;
+    return [r, c];
+  }
+
+  // Pointer events work for both mouse and touch
+  function onPointerDown(e: React.PointerEvent) {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    setPainting(true);
+    const cell = clientToCell(e.clientX, e.clientY);
+    if (!cell) return;
+    if (e.shiftKey) bucketFill(cell[0], cell[1]);
+    else paint(cell[0], cell[1]);
+  }
+
+  function onPointerMove(e: React.PointerEvent) {
+    if (!painting) return;
+    e.preventDefault();
+    const cell = clientToCell(e.clientX, e.clientY);
+    if (cell) paint(cell[0], cell[1]);
+  }
+
+  function onPointerUp(e: React.PointerEvent) {
+    e.preventDefault();
+    setPainting(false);
+  }
+
   return (
     <div
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, overflowY: 'auto', padding: '16px 0' }}
       onClick={onCancel}
     >
       <div
-        style={{ background: 'var(--bg-1)', border: '1px solid var(--border)', borderRadius: 10, padding: 24, display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 600, width: '96vw' }}
+        style={{ background: 'var(--bg-1)', border: '1px solid var(--border)', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', gap: 14, width: 'min(560px, 96vw)', margin: 'auto' }}
         onClick={e => e.stopPropagation()}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -69,11 +106,16 @@ function PixelAvatarEditor({ initialPixels, onSave, onCancel }: {
           <div style={{ fontSize: 11, color: 'var(--text-3)' }}>16×16 pixel canvas</div>
         </div>
 
-        <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
-          {/* Canvas */}
+        {/* Responsive layout: row on desktop, column on mobile */}
+        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          {/* Canvas — uses pointer events for unified mouse+touch */}
           <div
-            style={{ display: 'grid', gridTemplateColumns: `repeat(${GRID}, ${CELL}px)`, border: '1px solid var(--border)', flexShrink: 0, userSelect: 'none', cursor: 'crosshair' }}
-            onMouseLeave={() => setPainting(false)}
+            ref={gridRef}
+            style={{ display: 'grid', gridTemplateColumns: `repeat(${GRID}, ${CELL}px)`, border: '1px solid var(--border)', flexShrink: 0, userSelect: 'none', cursor: 'crosshair', touchAction: 'none' }}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerLeave={onPointerUp}
           >
             {pixels.map((row, r) =>
               row.map((color, c) => (
@@ -85,17 +127,15 @@ function PixelAvatarEditor({ initialPixels, onSave, onCancel }: {
                     boxSizing: 'border-box',
                     borderRight: c % 4 === 3 ? '1px solid rgba(255,255,255,0.05)' : 'none',
                     borderBottom: r % 4 === 3 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                    pointerEvents: 'none',
                   }}
-                  onMouseDown={e => { if (e.button === 0) { setPainting(true); e.shiftKey ? bucketFill(r, c) : paint(r, c); } }}
-                  onMouseEnter={() => { if (painting) paint(r, c); }}
-                  onMouseUp={() => setPainting(false)}
                 />
               ))
             )}
           </div>
 
           {/* Controls */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: 1 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: 1, minWidth: 160 }}>
             <div>
               <div style={{ fontSize: 9, letterSpacing: '0.12em', color: 'var(--text-3)', fontFamily: 'var(--font-display)', fontWeight: 700, marginBottom: 6 }}>PREVIEW</div>
               <canvas
@@ -136,22 +176,22 @@ function PixelAvatarEditor({ initialPixels, onSave, onCancel }: {
 
             <div style={{ display: 'flex', gap: 6 }}>
               <button onClick={() => setEraser(false)}
-                style={{ flex: 1, padding: '5px 0', border: '1px solid var(--border)', borderRadius: 4, background: !eraser ? 'var(--bg-3)' : 'transparent', color: !eraser ? 'var(--text)' : 'var(--text-3)', cursor: 'pointer', fontSize: 10, fontFamily: 'var(--font-display)', fontWeight: 600 }}>
+                style={{ flex: 1, padding: '6px 0', border: '1px solid var(--border)', borderRadius: 4, background: !eraser ? 'var(--bg-3)' : 'transparent', color: !eraser ? 'var(--text)' : 'var(--text-3)', cursor: 'pointer', fontSize: 10, fontFamily: 'var(--font-display)', fontWeight: 600 }}>
                 ✏ Draw
               </button>
               <button onClick={() => setEraser(true)}
-                style={{ flex: 1, padding: '5px 0', border: '1px solid var(--border)', borderRadius: 4, background: eraser ? 'var(--bg-3)' : 'transparent', color: eraser ? 'var(--text)' : 'var(--text-3)', cursor: 'pointer', fontSize: 10, fontFamily: 'var(--font-display)', fontWeight: 600 }}>
+                style={{ flex: 1, padding: '6px 0', border: '1px solid var(--border)', borderRadius: 4, background: eraser ? 'var(--bg-3)' : 'transparent', color: eraser ? 'var(--text)' : 'var(--text-3)', cursor: 'pointer', fontSize: 10, fontFamily: 'var(--font-display)', fontWeight: 600 }}>
                 ◻ Erase
               </button>
             </div>
 
             <div style={{ fontSize: 9, color: 'var(--text-3)', lineHeight: 1.7 }}>
-              Hold <b>click</b> to paint<br/>
-              <b>Shift+click</b> to bucket fill
+              <b>Touch/drag</b> to paint<br/>
+              <b>Shift+tap</b> to bucket fill
             </div>
 
             <button onClick={() => setPixels(makeEmptyGrid())}
-              style={{ padding: '5px 10px', border: '1px solid rgba(237,66,69,0.3)', borderRadius: 4, background: 'rgba(237,66,69,0.08)', color: '#ed4245', cursor: 'pointer', fontSize: 10, fontFamily: 'var(--font-display)', fontWeight: 600 }}>
+              style={{ padding: '6px 10px', border: '1px solid rgba(237,66,69,0.3)', borderRadius: 4, background: 'rgba(237,66,69,0.08)', color: '#ed4245', cursor: 'pointer', fontSize: 10, fontFamily: 'var(--font-display)', fontWeight: 600 }}>
               Clear All
             </button>
           </div>
@@ -442,7 +482,7 @@ function StatusMsg({ text, type }: { text: string; type: 'error' | 'success' }) 
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  pane: { flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: 'var(--bg)' },
+  pane: { flex: 1, display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden', background: 'var(--bg)' },
   header: { padding: '0 32px', height: 60, borderBottom: '1px solid var(--border)', background: 'var(--bg-1)', flexShrink: 0, display: 'flex', alignItems: 'center' },
   title: { fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, letterSpacing: '0.15em' },
   content: { flex: 1, overflowY: 'auto', padding: '28px 32px', maxWidth: 560, display: 'flex', flexDirection: 'column', gap: 24 },

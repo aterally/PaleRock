@@ -53,7 +53,7 @@ export default function AuthPage() {
   }
 
   if (checking) return (
-    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000' }}>
+    <div style={{ height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000' }}>
       <div className="spinner" />
     </div>
   );
@@ -163,7 +163,7 @@ function Field({ label, type, value, onChange, placeholder, autoComplete }: {
 
 const styles: Record<string, React.CSSProperties> = {
   page: {
-    minHeight: '100vh',
+    minHeight: '100dvh',
     background: 'var(--bg)',
     display: 'flex',
     alignItems: 'center',

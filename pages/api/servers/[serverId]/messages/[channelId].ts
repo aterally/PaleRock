@@ -71,6 +71,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       authorUsername: m.authorUsername,
       authorAvatar: avatarMap[m.authorId.toString()] || null,
       createdAt: m.createdAt,
+      replyTo: m.replyTo || null,
     }))});
   }
 
@@ -84,7 +85,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(403).json({ error: 'You are muted', mutedUntil: mutedUntil.toISOString() });
     }
 
-    const { content } = req.body;
+    const { content, replyTo } = req.body;
     if (!content || content.trim().length === 0) return res.status(400).json({ error: 'Content required' });
     if (content.length > 2000) return res.status(400).json({ error: 'Message too long' });
 
@@ -97,6 +98,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       authorAvatar: authorUser?.avatar || null,
       content: content.trim(),
       createdAt: new Date(),
+      replyTo: replyTo ? { id: replyTo.id, authorUsername: replyTo.authorUsername, content: String(replyTo.content).slice(0, 200) } : null,
     };
 
     const result = await db.collection('serverMessages').insertOne(message);

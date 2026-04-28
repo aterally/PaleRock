@@ -220,9 +220,17 @@ select option {
     --sidebar-width: 200px;
   }
 
-  /* Hide member list pane on iPad portrait to save space */
-  [data-member-list] {
-    display: none !important;
+  /* Member list becomes a slide-over overlay on iPad portrait */
+  .palerock-member-list {
+    position: fixed !important;
+    right: 0 !important;
+    top: 0 !important;
+    height: 100dvh !important;
+    width: 260px !important;
+    z-index: 200 !important;
+    box-shadow: -8px 0 32px rgba(0,0,0,0.6) !important;
+    transform: translateX(0);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
   }
 
   /* Tighten server rail */
@@ -240,7 +248,7 @@ select option {
 
   /* Stack the whole app vertically */
   body > #__next > div,
-  div[style*="height: 100vh"][style*="display: flex"] {
+  div[style*="height: 100dvh"][style*="display: flex"] {
     flex-direction: column !important;
   }
 
@@ -274,9 +282,15 @@ select option {
     min-width: 0 !important;
   }
 
-  /* Hide member list on mobile */
-  [data-member-list] {
-    display: none !important;
+  /* Member list is a slide-over on mobile too */
+  .palerock-member-list {
+    position: fixed !important;
+    right: 0 !important;
+    top: 0 !important;
+    height: 100dvh !important;
+    width: min(280px, 85vw) !important;
+    z-index: 300 !important;
+    box-shadow: -8px 0 40px rgba(0,0,0,0.8) !important;
   }
 
   /* Context menus — prevent them going off-screen */
@@ -338,4 +352,86 @@ select option {
       padding-bottom: calc(10px + env(safe-area-inset-bottom)) !important;
     }
   }
+}
+
+/* Show long-press hint only on touch devices */
+@media (hover: none) and (pointer: coarse) {
+  .touch-hint {
+    display: block !important;
+  }
+
+  /* Visual feedback on long-press — member rows */
+  [data-member-row] {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  [data-member-row]:active {
+    background: var(--bg-3) !important;
+  }
+}
+
+/* Message hover action buttons — desktop only */
+@media (hover: hover) and (pointer: fine) {
+  .msg-wrap:hover .msg-actions {
+    opacity: 1 !important;
+  }
+}
+/* On touch devices the .msg-actions overlay is hidden;
+   long-press triggers a context menu instead */
+@media (hover: none) and (pointer: coarse) {
+  .msg-actions {
+    display: none !important;
+  }
+}
+
+/* Long-press context menu */
+.lp-menu {
+  position: fixed;
+  z-index: 9999;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.7);
+  min-width: 160px;
+  animation: lpFadeIn 0.12s ease;
+}
+@keyframes lpFadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.lp-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 16px;
+  background: none;
+  border: none;
+  color: #d0d0d0;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  cursor: pointer;
+  text-align: left;
+  letter-spacing: 0.01em;
+}
+.lp-menu button:active {
+  background: rgba(255,255,255,0.05);
+}
+.lp-menu button.danger {
+  color: #ed4245;
+}
+.lp-menu hr {
+  border: none;
+  border-top: 1px solid #2a2a2a;
+  margin: 0;
+}
+
+/* Game button hover */
+.game-btn:hover {
+  background: #1a1a1a !important;
+  border-color: #2a2a2a !important;
+  color: #888 !important;
 }

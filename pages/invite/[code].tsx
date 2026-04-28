@@ -77,7 +77,7 @@ export default function InvitePage() {
 
 const styles: Record<string, React.CSSProperties> = {
   page: {
-    height: '100vh',
+    height: '100dvh',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',

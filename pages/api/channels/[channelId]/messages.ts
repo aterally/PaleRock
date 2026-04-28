@@ -64,6 +64,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       content: m.content,
       createdAt: m.createdAt,
       editedAt: m.editedAt || null,
+      replyTo: m.replyTo || null,
     }));
 
     return res.status(200).json({ messages: result, hasMore: messages.length === limit });
@@ -71,7 +72,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // POST: send message
   if (req.method === 'POST') {
-    const { content } = req.body;
+    const { content, replyTo } = req.body;
     if (!content || typeof content !== 'string' || !content.trim()) {
       return res.status(400).json({ error: 'Content required' });
     }
@@ -86,7 +87,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       content: content.trim(),
       createdAt: now,
       editedAt: null,
-      // Expandable: reactions: [], replyTo: null, attachments: []
+      replyTo: replyTo ? { id: replyTo.id, senderUsername: replyTo.senderUsername, content: replyTo.content.slice(0, 200) } : null,
     });
 
     await db.collection('channels').updateOne(
@@ -109,6 +110,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         content: content.trim(),
         createdAt: now,
         editedAt: null,
+        replyTo: replyTo ? { id: replyTo.id, senderUsername: replyTo.senderUsername, content: replyTo.content.slice(0, 200) } : null,
       }
     });
   }

@@ -64,7 +64,7 @@ export default function AppShell({ user, channels, activeChannelId, onChannelsUp
     : 'friends';
 
   return (
-    <div style={{ height: '100vh', display: 'flex', overflow: 'hidden', background: 'var(--bg)' }}>
+    <div style={{ height: '100dvh', display: 'flex', overflow: 'hidden', background: 'var(--bg)' }}>
       <Sidebar
         user={user}
         channels={channels}

@@ -1,6 +1,27 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { ServerData, ServerRole } from '@/pages/servers/[serverId]/[channelId]';
 import { Avatar } from '@/components/Sidebar';
+
+// Long-press hook for touch devices
+function useLongPress(callback: (e: React.TouchEvent) => void, ms = 500) {
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const movedRef = useRef(false);
+
+  const start = useCallback((e: React.TouchEvent) => {
+    movedRef.current = false;
+    timerRef.current = setTimeout(() => {
+      if (!movedRef.current) callback(e);
+    }, ms);
+  }, [callback, ms]);
+
+  const cancel = useCallback(() => {
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+  }, []);
+
+  const move = useCallback(() => { movedRef.current = true; cancel(); }, [cancel]);
+
+  return { onTouchStart: start, onTouchEnd: cancel, onTouchMove: move, onTouchCancel: cancel };
+}
 
 interface Props {
   server: ServerData;
@@ -60,6 +81,16 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
     setCtxMenu({ x, y, userId: m.userId, username: m.username });
   }
 
+  function openCtxTouch(m: typeof allMembers[0]) {
+    if (m.userId === currentUserId) return;
+    if (!(canKick || canBan || canMute || canManageRoles)) return;
+    setProfile(null);
+    // On touch: anchor to bottom-center of screen for easy thumb reach
+    const x = Math.max(8, (window.innerWidth - 200) / 2);
+    const y = window.innerHeight - 320;
+    setCtxMenu({ x, y, userId: m.userId, username: m.username });
+  }
+
   function openProfile(e: React.MouseEvent, m: typeof allMembers[0]) {
     e.stopPropagation();
     setCtxMenu(null);
@@ -107,78 +138,27 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
   const profileRoles = profileMember ? server.roles.filter(r => !r.isDefault && profileMember.roles.includes(r.id)) : [];
 
   return (
-    <aside data-member-list="1" style={st.pane} onClick={() => { setCtxMenu(null); setProfile(null); }}>
+    <aside data-member-list="1" className="palerock-member-list" style={st.pane} onClick={() => { setCtxMenu(null); setProfile(null); }}>
       <div style={st.header}>
         <span style={st.title}>MEMBERS — {server.members.length}</span>
+        <span style={{ fontSize: 9, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', marginLeft: 'auto', display: 'none' }} className="touch-hint">hold to manage</span>
       </div>
 
       <div style={st.list}>
-        {allMembers.map(member => {
-          const isMe = member.userId === currentUserId;
-          const isMemberOwner = member.userId === server.ownerId;
-          const highestRole = getHighestRole(member.roles);
-          const nameColor = highestRole?.color || 'var(--text-2)';
-          const isMuted = member.mutedUntil && new Date(member.mutedUntil).getTime() > Date.now();
-
-          function mutedLabel(mutedUntil: string) {
-            const msLeft = new Date(mutedUntil).getTime() - Date.now();
-            const totalMins = Math.ceil(msLeft / 60000);
-            if (totalMins < 60) return `muted ${totalMins}m`;
-            if (totalMins < 1440) return `muted ${Math.ceil(totalMins / 60)}h`;
-            return `muted ${Math.ceil(totalMins / 1440)}d`;
-          }
-
-          return (
-            <div
-              key={member.userId}
-              data-member-row="1"
-              style={st.memberItem}
-              onContextMenu={(e) => openCtx(e, member)}
-            >
-              <div
-                style={{ cursor: 'pointer', flexShrink: 0 }}
-                onClick={(e) => openProfile(e, member)}
-                title="View profile"
-              >
-                <Avatar username={member.username} avatar={member.avatar} size={34} />
-              </div>
-
-              <div style={st.memberInfo}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
-                  <span
-                    style={{ ...st.memberName, color: nameColor, cursor: 'pointer' }}
-                    onClick={(e) => openProfile(e, member)}
-                    title="View profile"
-                  >
-                    {member.nickname || member.username}
-                  </span>
-                  {isMemberOwner && <span style={st.ownerBadge}>owner</span>}
-                  {isMe && <span style={{ ...st.ownerBadge, color: '#23a55a' }}>you</span>}
-                  {isMuted && (() => {
-                    const msLeft = new Date(member.mutedUntil!).getTime() - Date.now();
-                    const totalMins = Math.ceil(msLeft / 60000);
-                    let durationLabel: string;
-                    if (totalMins < 60) durationLabel = `${totalMins}m`;
-                    else if (totalMins < 1440) durationLabel = `${Math.ceil(totalMins / 60)}h`;
-                    else durationLabel = `${Math.ceil(totalMins / 1440)}d`;
-                    return (
-                      <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 3, background: 'rgba(237,66,69,0.12)', color: '#ed4245', border: '1px solid rgba(237,66,69,0.3)', fontFamily: 'var(--font-mono)', letterSpacing: '0.04em' }}>
-                        muted {durationLabel}
-                      </span>
-                    );
-                  })()}
-                </div>
-                <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' as const }}>
-                  {server.roles.filter(r => !r.isDefault && member.roles.includes(r.id)).slice(0, 2).map(role => (
-                    <span key={role.id} style={{ ...st.roleBadge, borderColor: role.color + '55', color: role.color }}>
-                      {role.name}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          );
-        })}
+        {allMembers.map(member => (
+          <MemberRow
+            key={member.userId}
+            member={member}
+            currentUserId={currentUserId}
+            ownerId={server.ownerId}
+            roles={server.roles}
+            st={st}
+            onCtx={openCtx}
+            onCtxTouch={openCtxTouch}
+            onProfile={openProfile}
+            getHighestRole={getHighestRole}
+          />
+        ))}
       </div>
 
       {/* Right-click context menu */}
@@ -351,8 +331,79 @@ function RoleAssignModal({ server, userId, onClose, onUpdate }: { server: Server
   );
 }
 
+// ── MemberRow ────────────────────────────────────────────────────────────────
+// Extracted so useLongPress hook is called at component level (not inside .map)
+function MemberRow({ member, currentUserId, ownerId, roles, st, onCtx, onCtxTouch, onProfile, getHighestRole }: {
+  member: any;
+  currentUserId: string;
+  ownerId: string;
+  roles: ServerRole[];
+  st: Record<string, React.CSSProperties>;
+  onCtx: (e: React.MouseEvent, m: any) => void;
+  onCtxTouch: (m: any) => void;
+  onProfile: (e: React.MouseEvent, m: any) => void;
+  getHighestRole: (roleIds: string[]) => ServerRole | null;
+}) {
+  const longPress = useLongPress(() => onCtxTouch(member));
+  const isMe = member.userId === currentUserId;
+  const isMemberOwner = member.userId === ownerId;
+  const highestRole = getHighestRole(member.roles);
+  const nameColor = highestRole?.color || 'var(--text-2)';
+  const isMuted = member.mutedUntil && new Date(member.mutedUntil).getTime() > Date.now();
+
+  function mutedLabel(mutedUntil: string) {
+    const msLeft = new Date(mutedUntil).getTime() - Date.now();
+    const totalMins = Math.ceil(msLeft / 60000);
+    if (totalMins < 60) return `muted ${totalMins}m`;
+    if (totalMins < 1440) return `muted ${Math.ceil(totalMins / 60)}h`;
+    return `muted ${Math.ceil(totalMins / 1440)}d`;
+  }
+
+  return (
+    <div
+      data-member-row="1"
+      style={st.memberItem}
+      onContextMenu={(e) => onCtx(e, member)}
+      {...longPress}
+    >
+      <div
+        style={{ cursor: 'pointer', flexShrink: 0 }}
+        onClick={(e) => onProfile(e, member)}
+        title="View profile"
+      >
+        <Avatar username={member.username} avatar={member.avatar} size={34} />
+      </div>
+      <div style={st.memberInfo}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
+          <span
+            style={{ ...st.memberName, color: nameColor, cursor: 'pointer' }}
+            onClick={(e) => onProfile(e, member)}
+            title="View profile"
+          >
+            {member.nickname || member.username}
+          </span>
+          {isMemberOwner && <span style={st.ownerBadge}>owner</span>}
+          {isMe && <span style={{ ...st.ownerBadge, color: '#23a55a' }}>you</span>}
+          {isMuted && (
+            <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 3, background: 'rgba(237,66,69,0.12)', color: '#ed4245', border: '1px solid rgba(237,66,69,0.3)', fontFamily: 'var(--font-mono)', letterSpacing: '0.04em' }}>
+              {mutedLabel(member.mutedUntil!)}
+            </span>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' as const }}>
+          {roles.filter(r => !r.isDefault && member.roles.includes(r.id)).slice(0, 2).map((role: ServerRole) => (
+            <span key={role.id} style={{ ...st.roleBadge, borderColor: role.color + '55', color: role.color }}>
+              {role.name}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const st: Record<string, React.CSSProperties> = {
-  pane: { width: 260, minWidth: 260, height: '100vh', background: 'var(--bg-1)', borderLeft: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' },
+  pane: { width: 260, minWidth: 260, height: '100dvh', background: 'var(--bg-1)', borderLeft: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' },
   header: { padding: '0 16px', height: 60, borderBottom: '1px solid var(--border)', flexShrink: 0, display: 'flex', alignItems: 'center' },
   title: { fontSize: 10, letterSpacing: '0.14em', color: 'var(--text-3)', fontFamily: 'var(--font-display)', fontWeight: 700 },
   list: { flex: 1, overflowY: 'auto', padding: '8px 8px', display: 'flex', flexDirection: 'column', gap: 2 },
@@ -362,9 +413,9 @@ const st: Record<string, React.CSSProperties> = {
   memberName: { fontSize: 13, fontFamily: 'var(--font-display)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   ownerBadge: { fontSize: 9, color: '#ffd700', letterSpacing: '0.06em', fontFamily: 'var(--font-mono)', flexShrink: 0 },
   roleBadge: { fontSize: 9, padding: '1px 5px', border: '1px solid', borderRadius: 2, letterSpacing: '0.04em', display: 'inline-block', width: 'fit-content' },
-  ctxMenu: { position: 'fixed', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 8, padding: '4px', zIndex: 1000, minWidth: 180, boxShadow: '0 8px 32px rgba(0,0,0,0.5)' },
-  ctxHeader: { padding: '6px 10px', fontSize: 10, letterSpacing: '0.1em', color: 'var(--text-3)', fontFamily: 'var(--font-display)', fontWeight: 700, borderBottom: '1px solid var(--border)', marginBottom: 4 },
-  ctxItem: { display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 10px', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 12, borderRadius: 4, color: 'var(--text-2)', fontFamily: 'var(--font-display)' },
+  ctxMenu: { position: 'fixed', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 8, padding: '4px', zIndex: 1000, minWidth: 200, boxShadow: '0 8px 32px rgba(0,0,0,0.5)' },
+  ctxHeader: { padding: '8px 12px', fontSize: 10, letterSpacing: '0.1em', color: 'var(--text-3)', fontFamily: 'var(--font-display)', fontWeight: 700, borderBottom: '1px solid var(--border)', marginBottom: 4 },
+  ctxItem: { display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 12px', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 13, borderRadius: 4, color: 'var(--text-2)', fontFamily: 'var(--font-display)', minHeight: 40 },
   ctxDivider: { height: 1, background: 'var(--border)', margin: '3px 0' },
   profileCard: { position: 'fixed', width: 256, background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden', zIndex: 1000, boxShadow: '0 12px 40px rgba(0,0,0,0.6)' },
   profileBanner: { height: 56, width: '100%' },

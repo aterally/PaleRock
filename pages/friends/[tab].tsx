@@ -263,7 +263,7 @@ function Empty({ icon, text, sub }: { icon: string; text: string; sub: string })
 
 function LoadingScreen() {
   return (
-    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000' }}>
+    <div style={{ height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000' }}>
       <div className="spinner" style={{ width: 24, height: 24 }} />
     </div>
   );
@@ -282,7 +282,7 @@ const IconMessage = () => (
 );
 
 const styles: Record<string, React.CSSProperties> = {
-  pane: { flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: 'var(--bg)' },
+  pane: { flex: 1, display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden', background: 'var(--bg)' },
   header: { padding: '0 28px', height: 49, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, background: 'var(--bg-1)', gap: 24 },
   headerLeft: { display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 },
   headerIcon: { color: 'var(--text-3)', display: 'flex', alignItems: 'center' },

@@ -9,6 +9,7 @@ interface Message {
   authorUsername: string;
   authorAvatar?: string | null;
   createdAt: string;
+  replyTo?: { id: string; authorUsername: string; content: string } | null;
 }
 
 interface Props {
@@ -23,13 +24,16 @@ interface Props {
 }
 
 export default function ServerChatPane({
-  server, channel, currentUser, myMember, hasPermission, showMembers, onToggleMembers
+  server, channel, currentUser, myMember, isOwner, hasPermission, showMembers, onToggleMembers
 }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(() => Date.now());
+  const [replyTo, setReplyTo] = useState<{ id: string; authorUsername: string; content: string } | null>(null);
+  const [ctxMenu, setCtxMenu] = useState<{ msg: Message; x: number; y: number } | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const lastIdRef = useRef<string | null>(null);
   const canSend = hasPermission('sendMessages');
 
@@ -109,16 +113,23 @@ export default function ServerChatPane({
     const content = input.trim();
     if (!content || !canSend || isMuted) return;
     setInput('');
+    const replyingTo = replyTo;
+    setReplyTo(null);
     const r = await fetch(`/api/servers/${server.id}/messages/${channel.id}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ content, replyTo: replyingTo }),
     });
     if (r.ok) {
       const data = await r.json();
       setMessages(prev => [...prev, data.message]);
       lastIdRef.current = data.message.id;
     }
+  }
+
+  async function deleteMessage(msgId: string) {
+    await fetch(`/api/servers/${server.id}/message/${msgId}`, { method: 'DELETE' });
+    setMessages(prev => prev.filter(m => m.id !== msgId));
   }
 
   function groupMessages(msgs: Message[]) {
@@ -149,7 +160,7 @@ export default function ServerChatPane({
   const groups = groupMessages(messages);
 
   return (
-    <div style={styles.pane} onClick={() => setProfilePopup(null)}>
+    <div style={styles.pane} onClick={() => { setProfilePopup(null); setCtxMenu(null); }}>
       {/* Channel header */}
       <div style={styles.header}>
         <div style={styles.channelInfo}>
@@ -220,9 +231,45 @@ export default function ServerChatPane({
                         {new Date(group.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
-                    {group.messages.map(msg => (
-                      <p key={msg.id} style={styles.messageText}>{msg.content}</p>
-                    ))}
+                    {group.messages.map(msg => {
+                      let lpTimer: ReturnType<typeof setTimeout> | null = null;
+                      function handleTouchStart(e: React.TouchEvent) {
+                        const touch = e.touches[0];
+                        const tx = touch.clientX;
+                        const ty = touch.clientY;
+                        lpTimer = setTimeout(() => {
+                          const mx = Math.min(tx, window.innerWidth - 180);
+                          const my = Math.min(ty, window.innerHeight - 120);
+                          setCtxMenu({ msg, x: mx, y: my });
+                        }, 500);
+                      }
+                      function handleTouchEnd() {
+                        if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; }
+                      }
+                      return (
+                      <div key={msg.id} className="msg-wrap" style={{ position: 'relative' }}
+                        onTouchStart={handleTouchStart}
+                        onTouchEnd={handleTouchEnd}
+                        onTouchMove={handleTouchEnd}
+                      >
+                        {msg.replyTo && (
+                          <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <span style={{ opacity: 0.5 }}>↩</span>
+                            <span style={{ fontWeight: 600, color: 'var(--text-2)' }}>{msg.replyTo.authorUsername}</span>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>{msg.replyTo.content}</span>
+                          </div>
+                        )}
+                        <p style={styles.messageText}>{msg.content}</p>
+                        <div className="msg-actions" style={{ position: 'absolute', top: 0, right: 0, display: 'flex', gap: 4, opacity: 0, transition: 'opacity 0.1s' }}>
+                          <button title="Reply" onClick={() => { setReplyTo({ id: msg.id, authorUsername: msg.authorUsername, content: msg.content }); inputRef.current?.focus(); }}
+                            style={{ padding: '2px 6px', fontSize: 11, border: '1px solid var(--border)', borderRadius: 4, background: 'var(--bg-2)', color: 'var(--text-2)', cursor: 'pointer' }}>↩</button>
+                          {(msg.authorId === currentUser.id || isOwner || hasPermission('manageMessages')) && (
+                            <button title="Delete" onClick={() => { if (confirm('Delete?')) deleteMessage(msg.id); }}
+                              style={{ padding: '2px 6px', fontSize: 11, border: '1px solid rgba(237,66,69,0.3)', borderRadius: 4, background: 'rgba(237,66,69,0.08)', color: '#ed4245', cursor: 'pointer' }}>✕</button>
+                          )}
+                        </div>
+                      </div>
+                    );})}
                   </div>
                 </div>
               );
@@ -232,6 +279,33 @@ export default function ServerChatPane({
         )}
       </div>
 
+      {/* Long-press context menu (touch devices) */}
+      {ctxMenu && (
+        <div
+          className="lp-menu"
+          style={{ top: ctxMenu.y, left: ctxMenu.x }}
+          onClick={e => e.stopPropagation()}
+        >
+          <button onClick={() => {
+            setReplyTo({ id: ctxMenu.msg.id, authorUsername: ctxMenu.msg.authorUsername, content: ctxMenu.msg.content });
+            inputRef.current?.focus();
+            setCtxMenu(null);
+          }}>
+            <span>↩</span> Reply
+          </button>
+          {(ctxMenu.msg.authorId === currentUser.id || isOwner || hasPermission('manageMessages')) && (
+            <>
+              <hr />
+              <button className="danger" onClick={() => {
+                if (confirm('Delete?')) deleteMessage(ctxMenu.msg.id);
+                setCtxMenu(null);
+              }}>
+                <span>✕</span> Delete
+              </button>
+            </>
+          )}
+        </div>
+      )}
       {/* Profile popup */}
       {profilePopup && (() => {
         const member = server.members.find(m => m.userId === profilePopup.userId);
@@ -282,6 +356,13 @@ export default function ServerChatPane({
         );
       })()}
 
+      {/* Reply banner */}
+      {replyTo && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 16px', background: 'var(--bg-2)', borderTop: '1px solid var(--border)', fontSize: 12 }}>
+          <span style={{ color: 'var(--text-3)' }}>↩ Replying to <b style={{ color: 'var(--text-2)' }}>{replyTo.authorUsername}</b>: <span style={{ color: 'var(--text-3)', fontStyle: 'italic' }}>{replyTo.content.slice(0, 60)}{replyTo.content.length > 60 ? '…' : ''}</span></span>
+          <button onClick={() => setReplyTo(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '0 4px' }}>×</button>
+        </div>
+      )}
       {/* Input */}
       <div style={styles.inputArea}>
         {isMuted ? (
@@ -292,11 +373,12 @@ export default function ServerChatPane({
         ) : canSend ? (
           <div style={styles.inputRow}>
             <input
+              ref={inputRef}
               style={styles.input}
               placeholder={`Message #${channel.name}`}
               value={input}
               onChange={e => setInput(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } if (e.key === 'Escape') setReplyTo(null); }}
               maxLength={2000}
             />
             <button style={styles.sendBtn} onClick={sendMessage} disabled={!input.trim()}>

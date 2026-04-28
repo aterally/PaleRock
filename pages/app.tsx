@@ -11,7 +11,7 @@ export default function AppRedirect() {
       .catch(() => router.replace('/'));
   }, [router]);
   return (
-    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000' }}>
+    <div style={{ height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000' }}>
       <div className="spinner" style={{ width: 24, height: 24 }} />
     </div>
   );

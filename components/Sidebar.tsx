@@ -243,7 +243,6 @@ export function Avatar({ username, avatar, size = 32 }: { username: string; avat
         style={{
           width: size, height: size,
           borderRadius: 'var(--radius)',
-          border: `1px solid hsl(${hue}, 10%, 30%)`,
           imageRendering: 'pixelated',
           display: 'block',
           flexShrink: 0,
@@ -256,7 +255,6 @@ export function Avatar({ username, avatar, size = 32 }: { username: string; avat
     <div style={{
       width: size, height: size, borderRadius: 'var(--radius)',
       background: `hsl(${hue}, 10%, 20%)`,
-      border: `1px solid hsl(${hue}, 10%, 30%)`,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontFamily: 'var(--font-display)', fontWeight: 800,
       fontSize: size * 0.38, color: `hsl(${hue}, 20%, 80%)`,
@@ -293,13 +291,13 @@ const IconLogout = () => (
 const styles: Record<string, React.CSSProperties> = {
   outerWrapper: {
     display: 'flex',
-    height: '100vh',
+    height: '100dvh',
     flexShrink: 0,
   },
   serverRail: {
     width: 56,
     minWidth: 56,
-    height: '100vh',
+    height: '100dvh',
     background: '#050505',
     borderRight: '1px solid var(--border)',
     display: 'flex',
@@ -332,7 +330,7 @@ const styles: Record<string, React.CSSProperties> = {
   sidebar: {
     width: 'var(--sidebar-width)',
     minWidth: 'var(--sidebar-width)',
-    height: '100vh',
+    height: '100dvh',
     background: 'var(--bg-1)',
     borderRight: '1px solid var(--border)',
     display: 'flex',

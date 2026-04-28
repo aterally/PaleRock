@@ -63,6 +63,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       content: m.content,
       createdAt: m.createdAt,
       editedAt: m.editedAt || null,
+      replyTo: m.replyTo || null,
     }))
   });
 }

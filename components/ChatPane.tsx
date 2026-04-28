@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { User, Channel } from '@/pages/app';
 import { Avatar } from '@/components/Sidebar';
+import TicTacToeCard from '@/components/games/TicTacToeCard';
 
 interface Message {
   id: string;
@@ -11,6 +12,7 @@ interface Message {
   content: string;
   createdAt: string;
   editedAt: string | null;
+  replyTo?: { id: string; senderUsername: string; content: string } | null;
 }
 
 interface ChatPaneProps {
@@ -99,17 +101,60 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
     } finally { setLoadingMore(false); }
   }
 
+  const [replyTo, setReplyTo] = useState<{ id: string; senderUsername: string; content: string } | null>(null);
+  const [ctxMenu, setCtxMenu] = useState<{ msg: Message; x: number; y: number } | null>(null);
+  const [showGamePicker, setShowGamePicker] = useState(false);
+  const [launchingGame, setLaunchingGame] = useState(false);
+
+  async function deleteMessage(msgId: string) {
+    await fetch(`/api/channels/${channelId}/message/${msgId}`, { method: 'DELETE' });
+    setMessages(prev => prev.filter(m => m.id !== msgId));
+  }
+
+  async function sendGame(type: string) {
+    setLaunchingGame(true);
+    setShowGamePicker(false);
+    try {
+      const r = await fetch(`/api/channels/${channelId}/game`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type }),
+      });
+      if (r.ok) {
+        // Trigger an immediate poll so the game message appears
+        const after = lastIdRef.current;
+        const pr = await fetch(`/api/channels/${channelId}/poll${after ? `?after=${after}` : ''}`);
+        const pdata = await pr.json();
+        if (pdata.messages && pdata.messages.length > 0) {
+          setMessages(prev => {
+            const existingIds = new Set(prev.map(m => m.id));
+            const newMsgs = pdata.messages.filter((m: Message) => !existingIds.has(m.id));
+            if (newMsgs.length === 0) return prev;
+            lastIdRef.current = newMsgs[newMsgs.length - 1].id;
+            return [...prev, ...newMsgs];
+          });
+          setTimeout(() => scrollToBottom(true), 30);
+        }
+      } else {
+        const data = await r.json();
+        alert(data.error || 'Failed to send game invite');
+      }
+    } finally { setLaunchingGame(false); }
+  }
+
   async function sendMessage() {
     const content = input.trim();
     if (!content || sending) return;
     setSending(true);
     setInput('');
+    const replyingTo = replyTo;
+    setReplyTo(null);
     inputRef.current?.focus();
     try {
       const r = await fetch(`/api/channels/${channelId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, replyTo: replyingTo }),
       });
       const data = await r.json();
       if (r.ok && data.message) {
@@ -122,6 +167,7 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
 
   function onKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    if (e.key === 'Escape') setReplyTo(null);
   }
 
   const otherUser = channel?.otherUser;
@@ -136,7 +182,7 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
   }
 
   return (
-    <div style={s.pane} onClick={() => setDmProfile(null)}>
+    <div style={s.pane} onClick={() => { setDmProfile(null); setCtxMenu(null); setShowGamePicker(false); }}>
       {/* Header */}
       <div style={s.header}>
         {otherUser && <Avatar username={otherUser.username} avatar={otherUser.avatar} size={28} />}
@@ -166,12 +212,29 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
               <p style={s.emptyHint}>Beginning of your conversation</p>
             </div>
           ) : (
-            <MessageList messages={messages} currentUserId={currentUser.id} onProfileClick={handleProfileClick} />
+            <MessageList
+            messages={messages}
+            currentUserId={currentUser.id}
+            currentUsername={currentUser.username}
+            otherUsername={otherUser?.username || ''}
+            channelId={channelId}
+            onProfileClick={handleProfileClick}
+            onReply={(msg) => { setReplyTo({ id: msg.id, senderUsername: msg.senderUsername, content: msg.content }); inputRef.current?.focus(); }}
+            onDelete={deleteMessage}
+            onLongPress={(msg, x, y) => setCtxMenu({ msg, x, y })}
+          />
           )}
           <div ref={bottomRef} />
         </div>
       </div>
 
+      {/* Reply banner */}
+      {replyTo && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 16px', background: 'var(--bg-2)', borderTop: '1px solid var(--border)', fontSize: 12 }}>
+          <span style={{ color: 'var(--text-3)' }}>↩ Replying to <b style={{ color: 'var(--text-2)' }}>{replyTo.senderUsername}</b>: <span style={{ color: 'var(--text-3)', fontStyle: 'italic' }}>{replyTo.content.slice(0, 60)}{replyTo.content.length > 60 ? '…' : ''}</span></span>
+          <button onClick={() => setReplyTo(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '0 4px' }}>×</button>
+        </div>
+      )}
       {/* Input */}
       <div style={s.inputRow}>
         <textarea
@@ -183,6 +246,65 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
           rows={1}
           style={{ ...s.input, height: Math.min(140, Math.max(42, input.split('\n').length * 22 + 20)) }}
         />
+        {/* Game picker button */}
+        <div style={{ position: 'relative', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+          <button
+            title="Mini Games"
+            onClick={() => setShowGamePicker(v => !v)}
+            disabled={launchingGame}
+            style={{
+              width: 38, height: 38,
+              background: showGamePicker ? '#1a1a1a' : 'transparent',
+              border: '1px solid ' + (showGamePicker ? '#2a2a2a' : '#1e1e1e'),
+              borderRadius: '50%',
+              cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: '#444',
+              transition: 'all 0.15s',
+              flexShrink: 0,
+            }}
+          >
+            {launchingGame
+              ? <span className="spinner" style={{ width: 12, height: 12 }} />
+              : <IconGamepad />}
+          </button>
+          {/* Game picker panel */}
+          {showGamePicker && (
+            <div style={{
+              position: 'absolute', bottom: 46, right: 0,
+              background: '#111', border: '1px solid #1e1e1e',
+              borderRadius: 12, padding: 12, minWidth: 200,
+              boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+              zIndex: 200,
+            }}>
+              <div style={{ fontSize: 10, color: '#333', fontFamily: "'Inter', system-ui, sans-serif", fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10, paddingBottom: 8, borderBottom: '1px solid #1a1a1a' }}>
+                Mini Games
+              </div>
+              {GAMES.map(game => (
+                <button
+                  key={game.id}
+                  onClick={() => sendGame(game.id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    width: '100%', padding: '9px 8px',
+                    background: 'none', border: 'none',
+                    borderRadius: 8, cursor: 'pointer',
+                    color: '#c0c0c0', textAlign: 'left',
+                    transition: 'background 0.1s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = '#181818')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                >
+                  <span style={{ fontSize: 20, lineHeight: 1 }}>{game.emoji}</span>
+                  <div>
+                    <div style={{ fontSize: 13, fontFamily: "'Inter', system-ui, sans-serif", fontWeight: 500 }}>{game.name}</div>
+                    <div style={{ fontSize: 11, color: '#404040', fontFamily: "'Inter', system-ui, sans-serif", fontWeight: 300, marginTop: 1 }}>{game.desc}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <button
           onClick={sendMessage}
           disabled={!input.trim() || sending}
@@ -193,6 +315,33 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
             : <IconSend />}
         </button>
       </div>
+      {/* Long-press context menu (touch devices) */}
+      {ctxMenu && (
+        <div
+          className="lp-menu"
+          style={{ top: ctxMenu.y, left: ctxMenu.x }}
+          onClick={e => e.stopPropagation()}
+        >
+          <button onClick={() => {
+            setReplyTo({ id: ctxMenu.msg.id, senderUsername: ctxMenu.msg.senderUsername, content: ctxMenu.msg.content });
+            inputRef.current?.focus();
+            setCtxMenu(null);
+          }}>
+            <span>↩</span> Reply
+          </button>
+          {ctxMenu.msg.senderId === currentUser.id && (
+            <>
+              <hr />
+              <button className="danger" onClick={() => {
+                if (confirm('Delete this message?')) deleteMessage(ctxMenu.msg.id);
+                setCtxMenu(null);
+              }}>
+                <span>✕</span> Delete
+              </button>
+            </>
+          )}
+        </div>
+      )}
       {/* DM Profile popup */}
       {dmProfile && (
         <div
@@ -215,7 +364,17 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
   );
 }
 
-function MessageList({ messages, currentUserId, onProfileClick }: { messages: Message[]; currentUserId: string; onProfileClick?: (e: React.MouseEvent, senderId: string, senderUsername: string, senderAvatar?: string | null) => void; }) {
+function MessageList({ messages, currentUserId, currentUsername, otherUsername, channelId, onProfileClick, onReply, onDelete, onLongPress }: {
+  messages: Message[];
+  currentUserId: string;
+  currentUsername: string;
+  otherUsername: string;
+  channelId: string;
+  onProfileClick?: (e: React.MouseEvent, senderId: string, senderUsername: string, senderAvatar?: string | null) => void;
+  onReply?: (msg: Message) => void;
+  onDelete?: (msgId: string) => void;
+  onLongPress?: (msg: Message, x: number, y: number) => void;
+}) {
   const byDate: { date: string; messages: Message[] }[] = [];
   messages.forEach(msg => {
     const d = new Date(msg.createdAt).toDateString();
@@ -233,14 +392,14 @@ function MessageList({ messages, currentUserId, onProfileClick }: { messages: Me
             <span style={s.dateLabel}>{formatDate(group.date)}</span>
             <div style={s.dateLine} />
           </div>
-          {renderClusters(group.messages, currentUserId, onProfileClick)}
+          {renderClusters(group.messages, currentUserId, currentUsername, otherUsername, channelId, onProfileClick, onReply, onDelete, onLongPress)}
         </div>
       ))}
     </>
   );
 }
 
-function renderClusters(messages: Message[], currentUserId: string, onProfileClick?: (e: React.MouseEvent, senderId: string, senderUsername: string, senderAvatar?: string | null) => void) {
+function renderClusters(messages: Message[], currentUserId: string, currentUsername: string, otherUsername: string, channelId: string, onProfileClick?: (e: React.MouseEvent, senderId: string, senderUsername: string, senderAvatar?: string | null) => void, onReply?: (msg: Message) => void, onDelete?: (msgId: string) => void, onLongPress?: (msg: Message, x: number, y: number) => void) {
   const nodes: React.ReactNode[] = [];
   let i = 0;
 
@@ -298,25 +457,104 @@ function renderClusters(messages: Message[], currentUserId: string, onProfileCli
             const last = idx === cluster.length - 1;
             const r = 16;
             const t = 5;
+            let lpTimer: ReturnType<typeof setTimeout> | null = null;
+            function handleTouchStart(e: React.TouchEvent) {
+              const touch = e.touches[0];
+              const tx = touch.clientX;
+              const ty = touch.clientY;
+              lpTimer = setTimeout(() => {
+                // position menu: avoid right/bottom overflow
+                const mx = Math.min(tx, window.innerWidth - 180);
+                const my = Math.min(ty, window.innerHeight - 120);
+                onLongPress?.(m, mx, my);
+              }, 500);
+            }
+            function handleTouchEnd() {
+              if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; }
+            }
+
+            // Game message — render card instead of bubble
+            if (m.content.startsWith('__GAME__:')) {
+              let gameInfo: { gameId: string; type: string; status: string } | null = null;
+              try { gameInfo = JSON.parse(m.content.slice('__GAME__:'.length)); } catch {}
+              if (gameInfo) {
+                return (
+                  <div key={m.id}
+                    onTouchStart={handleTouchStart}
+                    onTouchEnd={handleTouchEnd}
+                    onTouchMove={handleTouchEnd}
+                  >
+                    <TicTacToeCard
+                      gameId={gameInfo.gameId}
+                      channelId={channelId}
+                      currentUserId={currentUserId}
+                      currentUsername={currentUsername}
+                      otherUsername={otherUsername}
+                      initialStatus={gameInfo.status as 'pending' | 'active' | 'finished' | 'denied'}
+                    />
+                  </div>
+                );
+              }
+            }
+
             return (
-              <div key={m.id} style={{
-                padding: '9px 14px',
-                fontSize: 14,
-                lineHeight: 1.6,
-                wordBreak: 'break-word',
-                whiteSpace: 'pre-wrap',
-                letterSpacing: '0.01em',
-                animation: 'fadeIn 0.12s ease',
-                background: isMe ? '#efefef' : '#141414',
-                color: isMe ? '#0d0d0d' : '#d8d8d8',
-                marginBottom: last ? 0 : 2,
-                borderRadius: isMe
-                  ? `${first ? r : t}px ${t}px ${t}px ${last ? r : t}px`
-                  : `${t}px ${first ? r : t}px ${last ? r : t}px ${t}px`,
-                fontFamily: "'Inter', system-ui, sans-serif",
-                fontWeight: 400,
-              }}>
-                {m.content}
+              <div key={m.id} style={{ position: 'relative' }} className="msg-wrap"
+                onTouchStart={handleTouchStart}
+                onTouchEnd={handleTouchEnd}
+                onTouchMove={handleTouchEnd}
+              >
+                {/* Reply preview */}
+                {m.replyTo && (
+                  <div style={{
+                    fontSize: 11, color: 'var(--text-3)', marginBottom: 2,
+                    paddingLeft: isMe ? 0 : 8, paddingRight: isMe ? 8 : 0,
+                    display: 'flex', alignItems: 'center', gap: 4,
+                    justifyContent: isMe ? 'flex-end' : 'flex-start',
+                  }}>
+                    <span style={{ opacity: 0.5 }}>↩</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-2)' }}>{m.replyTo.senderUsername}</span>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>{m.replyTo.content}</span>
+                  </div>
+                )}
+                <div style={{
+                  padding: '9px 14px',
+                  fontSize: 14,
+                  lineHeight: 1.6,
+                  wordBreak: 'break-word',
+                  whiteSpace: 'pre-wrap',
+                  letterSpacing: '0.01em',
+                  animation: 'fadeIn 0.12s ease',
+                  background: isMe ? '#efefef' : '#141414',
+                  color: isMe ? '#0d0d0d' : '#d8d8d8',
+                  marginBottom: last ? 0 : 2,
+                  borderRadius: isMe
+                    ? `${first ? r : t}px ${t}px ${t}px ${last ? r : t}px`
+                    : `${t}px ${first ? r : t}px ${last ? r : t}px ${t}px`,
+                  fontFamily: "'Inter', system-ui, sans-serif",
+                  fontWeight: 400,
+                }}>
+                  {m.content}
+                </div>
+                {/* Hover action buttons */}
+                <div className="msg-actions" style={{
+                  position: 'absolute', top: -2,
+                  ...(isMe ? { left: -72 } : { right: -72 }),
+                  display: 'flex', gap: 4, opacity: 0,
+                  transition: 'opacity 0.1s',
+                }}>
+                  <button
+                    title="Reply"
+                    onClick={() => onReply?.(m)}
+                    style={{ padding: '3px 7px', fontSize: 11, border: '1px solid var(--border)', borderRadius: 4, background: 'var(--bg-2)', color: 'var(--text-2)', cursor: 'pointer' }}
+                  >↩</button>
+                  {m.senderId === currentUserId && (
+                    <button
+                      title="Delete"
+                      onClick={() => { if (confirm('Delete this message?')) onDelete?.(m.id); }}
+                      style={{ padding: '3px 7px', fontSize: 11, border: '1px solid rgba(237,66,69,0.3)', borderRadius: 4, background: 'rgba(237,66,69,0.08)', color: '#ed4245', cursor: 'pointer' }}
+                    >✕</button>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -349,12 +587,25 @@ const IconSend = () => (
   </svg>
 );
 
+const IconGamepad = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/>
+    <circle cx="15" cy="11" r="0.5" fill="currentColor" stroke="none"/>
+    <circle cx="17" cy="13" r="0.5" fill="currentColor" stroke="none"/>
+    <rect x="2" y="7" width="20" height="10" rx="5"/>
+  </svg>
+);
+
+const GAMES = [
+  { id: 'tictactoe', name: 'Tic Tac Toe', emoji: '⬜', desc: '2-player · Classic 3×3 grid' },
+];
+
 const s: Record<string, React.CSSProperties> = {
   pane: {
     flex: 1,
     display: 'flex',
     flexDirection: 'column',
-    height: '100vh',
+    height: '100dvh',
     overflow: 'hidden',
     background: '#080808',
   },

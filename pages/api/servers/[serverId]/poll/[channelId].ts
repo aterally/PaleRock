@@ -68,6 +68,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       authorUsername: m.authorUsername,
       authorAvatar: avatarMap[m.authorId.toString()] || null,
       createdAt: m.createdAt,
+      replyTo: m.replyTo || null,
     }))
   });
 }
