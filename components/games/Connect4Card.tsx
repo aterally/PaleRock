@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 
 const COLS = 7;
 const ROWS = 6;
+const FORFEIT_MINUTES = 15;
+const FORFEIT_MS = FORFEIT_MINUTES * 60 * 1000;
 
 interface GameState {
   id: string;
@@ -14,6 +16,8 @@ interface GameState {
   winner: string | null;
   isDraw: boolean;
   invitedAt: string;
+  startedAt?: string;
+  forfeitedBy?: string;
 }
 
 interface Connect4CardProps {
@@ -32,6 +36,7 @@ export default function Connect4Card({
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [gameTimeLeft, setGameTimeLeft] = useState<number | null>(null);
   const [hoverCol, setHoverCol] = useState<number | null>(null);
 
   const fetchGame = useCallback(async () => {
@@ -50,6 +55,7 @@ export default function Connect4Card({
     return () => clearInterval(interval);
   }, [game?.status, fetchGame]);
 
+  // Pending invite timeout (60s)
   useEffect(() => {
     if (!game || game.status !== 'pending') return;
     const isInvitee = game.inviteeId === currentUserId;
@@ -70,6 +76,28 @@ export default function Connect4Card({
     const t = setInterval(tick, 1000);
     return () => clearInterval(t);
   }, [game?.status, game?.invitedAt, game?.inviteeId, currentUserId, channelId, gameId, fetchGame]);
+
+  // Active game 15-minute forfeit timer
+  useEffect(() => {
+    if (!game || game.status !== 'active') return;
+    const startTime = game.startedAt ? new Date(game.startedAt).getTime() : Date.now();
+    function tick() {
+      if (!game) return;
+      const elapsed = Date.now() - startTime;
+      const left = Math.max(0, FORFEIT_MS - elapsed);
+      setGameTimeLeft(Math.floor(left / 1000));
+      if (left === 0) {
+        // Forfeit: the player whose turn it is loses
+        fetch(`/api/channels/${channelId}/game`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ gameId, action: 'forfeit' }),
+        }).then(() => fetchGame());
+      }
+    }
+    tick();
+    const t = setInterval(tick, 1000);
+    return () => clearInterval(t);
+  }, [game?.status, game?.startedAt, channelId, gameId, fetchGame]);
 
   async function respond(action: 'accept' | 'deny') {
     setActing(true);
@@ -106,7 +134,7 @@ export default function Connect4Card({
       <div style={card}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-3)', fontSize: 14 }}>
           <span className="spinner" style={{ width: 12, height: 12 }} />
-          Loading game…
+          Loading game...
         </div>
       </div>
     );
@@ -117,17 +145,22 @@ export default function Connect4Card({
   const isInvitee = game.inviteeId === currentUserId;
   const myColor = isInviter ? '#e05c5c' : '#e8c84a';
   const theirColor = isInviter ? '#e8c84a' : '#e05c5c';
-  const myLabel = isInviter ? '●' : '●';
   const isMyTurn = game.turn === currentUserId;
   const iWon = game.winner === currentUserId;
   const theyWon = game.winner && game.winner !== currentUserId;
   const winningCells = game.status === 'finished' && !game.isDraw ? getWinningCells(game.board) : null;
 
+  const formatGameTime = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
   if (game.status === 'pending') {
     if (isInviter) {
       return (
         <div style={card}>
-          <div style={cardHeader}><IconConnect4 /> <span>Connect 4</span><span style={badge('yellow')}>Waiting…</span></div>
+          <div style={cardHeader}><IconConnect4 /> <span>Connect 4</span><span style={badge('yellow')}>Waiting...</span></div>
           <p style={cardBody}>Waiting for {otherUsername} to accept your challenge.</p>
           <div style={timerBar}><div style={{ ...timerFill, width: `${((timeLeft ?? 60) / 60) * 100}%` }} /></div>
         </div>
@@ -146,11 +179,11 @@ export default function Connect4Card({
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={() => respond('accept')} disabled={acting || timeLeft === 0}
             style={{ ...btn, background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.3)', color: '#4ade80' }}>
-            {acting ? <span className="spinner" style={{ width: 10, height: 10 }} /> : '✓ Accept'}
+            {acting ? <span className="spinner" style={{ width: 10, height: 10 }} /> : 'Accept'}
           </button>
           <button onClick={() => respond('deny')} disabled={acting || timeLeft === 0}
             style={{ ...btn, background: 'rgba(237,66,69,0.08)', border: '1px solid rgba(237,66,69,0.3)', color: '#ed4245' }}>
-            ✕ Deny
+            Deny
           </button>
         </div>
       </div>
@@ -172,83 +205,105 @@ export default function Connect4Card({
         <IconConnect4 /> <span>Connect 4</span>
         <span style={badge(game.status === 'finished' ? (iWon ? 'green' : theyWon ? 'red' : 'grey') : isMyTurn ? 'blue' : 'yellow')}>
           {game.status === 'finished'
-            ? (game.isDraw ? 'Draw' : iWon ? 'You won!' : `${otherUsername} won`)
+            ? (game.forfeitedBy
+              ? (game.forfeitedBy === currentUserId ? 'You forfeited' : `${otherUsername} forfeited`)
+              : game.isDraw ? 'Draw' : iWon ? 'You won!' : `${otherUsername} won`)
             : isMyTurn ? 'Your turn' : `${otherUsername}'s turn`}
         </span>
       </div>
       {game.status === 'active' && (
-        <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 10, fontFamily: 'var(--font-display)', display: 'flex', gap: 12 }}>
+        <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 8, fontFamily: 'var(--font-display)', display: 'flex', gap: 12, alignItems: 'center' }}>
           <span>You <span style={{ color: myColor, fontWeight: 700 }}>●</span></span>
           <span>{otherUsername} <span style={{ color: theirColor, fontWeight: 700 }}>●</span></span>
+          {gameTimeLeft !== null && (
+            <span style={{ marginLeft: 'auto', fontSize: 11, color: gameTimeLeft < 60 ? '#ed4245' : 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
+              {formatGameTime(gameTimeLeft)}
+            </span>
+          )}
         </div>
       )}
-      {/* Column drop buttons */}
-      {game.status === 'active' && isMyTurn && (
-        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${COLS}, 1fr)`, gap: 3, marginBottom: 2, width: COLS * 36 + (COLS - 1) * 3 }}>
+      {/* Board — entire board area is clickable by column */}
+      <div style={{ position: 'relative', display: 'inline-block' }}>
+        {/* Hover indicators row */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${COLS}, 36px)`,
+          gap: 3,
+          paddingLeft: 6,
+          paddingRight: 6,
+          marginBottom: 2,
+          height: 18,
+        }}>
           {Array.from({ length: COLS }, (_, col) => {
-            const colFull = game.board[col] !== null; // top row filled = column full
+            const colFull = game.board[col] !== null;
+            const isHovered = hoverCol === col && game.status === 'active' && isMyTurn && !acting && !colFull;
             return (
-              <button
-                key={col}
-                onClick={() => dropPiece(col)}
-                disabled={acting || colFull}
-                onMouseEnter={() => setHoverCol(col)}
-                onMouseLeave={() => setHoverCol(null)}
-                style={{
-                  height: 20, background: 'transparent', border: 'none', cursor: colFull ? 'default' : 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: hoverCol === col && !colFull ? myColor : 'transparent',
-                  fontSize: 14, transition: 'color 0.1s',
-                }}
-              >▼</button>
+              <div key={col} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: isHovered ? myColor : 'transparent',
+                fontSize: 12, transition: 'color 0.1s',
+              }}>
+                {isHovered ? '▼' : ''}
+              </div>
             );
           })}
         </div>
-      )}
-      {/* Board */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: `repeat(${COLS}, 36px)`,
-        gridTemplateRows: `repeat(${ROWS}, 36px)`,
-        gap: 3,
-        background: 'var(--bg-3)',
-        borderRadius: 8,
-        padding: 6,
-        border: '1px solid var(--border)',
-      }}>
-        {game.board.map((cell, i) => {
-          const row = Math.floor(i / COLS);
-          const col = i % COLS;
-          const isWin = winningCells?.includes(i);
-          const isHoverCol = hoverCol === col && game.status === 'active' && isMyTurn && !acting;
-          // Find the drop preview row (lowest empty in hovered col)
-          let previewRow = -1;
-          if (isHoverCol) {
-            for (let r = ROWS - 1; r >= 0; r--) {
-              if (game.board[r * COLS + col] === null) { previewRow = r; break; }
+        {/* Board grid */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${COLS}, 36px)`,
+          gridTemplateRows: `repeat(${ROWS}, 36px)`,
+          gap: 3,
+          background: 'var(--bg-3)',
+          borderRadius: 8,
+          padding: 6,
+          border: '1px solid var(--border)',
+          cursor: game.status === 'active' && isMyTurn && !acting ? 'pointer' : 'default',
+        }}
+          onMouseLeave={() => setHoverCol(null)}
+        >
+          {game.board.map((cell, i) => {
+            const row = Math.floor(i / COLS);
+            const col = i % COLS;
+            const isWin = winningCells?.includes(i);
+            const isHoverCol = hoverCol === col && game.status === 'active' && isMyTurn && !acting;
+            // Find the drop preview row (lowest empty in hovered col)
+            let previewRow = -1;
+            if (isHoverCol) {
+              for (let r = ROWS - 1; r >= 0; r--) {
+                if (game.board[r * COLS + col] === null) { previewRow = r; break; }
+              }
             }
-          }
-          const isPreview = isHoverCol && row === previewRow && cell === null;
-          const cellColor = cell === game.inviterId ? '#e05c5c' : cell === game.inviteeId ? '#e8c84a' : null;
-          return (
-            <div
-              key={i}
-              style={{
-                width: 36, height: 36, borderRadius: '50%',
-                background: isWin
-                  ? (cellColor || 'transparent')
-                  : isPreview
-                  ? myColor + '44'
-                  : cell
-                  ? (cellColor || 'var(--bg-4)')
-                  : 'var(--bg-2)',
-                border: isWin ? `2px solid ${cellColor}` : `1px solid var(--border)`,
-                boxShadow: isWin ? `0 0 8px ${cellColor}66` : 'none',
-                transition: 'background 0.15s',
-              }}
-            />
-          );
-        })}
+            const isPreview = isHoverCol && row === previewRow && cell === null;
+            const cellColor = cell === game.inviterId ? '#e05c5c' : cell === game.inviteeId ? '#e8c84a' : null;
+            const colFull = (() => { for (let r = ROWS - 1; r >= 0; r--) { if (game.board[r * COLS + col] === null) return false; } return true; })();
+            return (
+              <div
+                key={i}
+                onMouseEnter={() => setHoverCol(col)}
+                onClick={() => {
+                  if (game.status === 'active' && isMyTurn && !acting && !colFull) {
+                    dropPiece(col);
+                  }
+                }}
+                style={{
+                  width: 36, height: 36, borderRadius: '50%',
+                  background: isWin
+                    ? (cellColor || 'transparent')
+                    : isPreview
+                    ? myColor + '44'
+                    : cell
+                    ? (cellColor || 'var(--bg-4)')
+                    : 'var(--bg-2)',
+                  border: isWin ? `2px solid ${cellColor}` : `1px solid var(--border)`,
+                  boxShadow: isWin ? `0 0 8px ${cellColor}66` : 'none',
+                  transition: 'background 0.15s',
+                  cursor: game.status === 'active' && isMyTurn && !acting && !colFull ? 'pointer' : 'default',
+                }}
+              />
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -271,7 +326,7 @@ function getWinningCells(board: (string | null)[]): number[] | null {
         return [i, i+COLS, i+2*COLS, i+3*COLS];
     }
   }
-  // Check diagonal ↘
+  // Check diagonal down-right
   for (let r = 0; r <= ROWS - 4; r++) {
     for (let c = 0; c <= COLS - 4; c++) {
       const i = r * COLS + c;
@@ -279,7 +334,7 @@ function getWinningCells(board: (string | null)[]): number[] | null {
         return [i, i+COLS+1, i+2*(COLS+1), i+3*(COLS+1)];
     }
   }
-  // Check diagonal ↙
+  // Check diagonal down-left
   for (let r = 0; r <= ROWS - 4; r++) {
     for (let c = 3; c < COLS; c++) {
       const i = r * COLS + c;

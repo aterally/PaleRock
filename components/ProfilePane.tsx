@@ -177,11 +177,11 @@ function PixelAvatarEditor({ initialPixels, onSave, onCancel }: {
             <div style={{ display: 'flex', gap: 6 }}>
               <button onClick={() => setEraser(false)}
                 style={{ flex: 1, padding: '6px 0', border: '1px solid var(--border)', borderRadius: 4, background: !eraser ? 'var(--bg-3)' : 'transparent', color: !eraser ? 'var(--text)' : 'var(--text-3)', cursor: 'pointer', fontSize: 10, fontFamily: 'var(--font-display)', fontWeight: 600 }}>
-                ✏ Draw
+                Draw
               </button>
               <button onClick={() => setEraser(true)}
                 style={{ flex: 1, padding: '6px 0', border: '1px solid var(--border)', borderRadius: 4, background: eraser ? 'var(--bg-3)' : 'transparent', color: eraser ? 'var(--text)' : 'var(--text-3)', cursor: 'pointer', fontSize: 10, fontFamily: 'var(--font-display)', fontWeight: 600 }}>
-                ◻ Erase
+                Erase
               </button>
             </div>
 
@@ -408,7 +408,7 @@ export default function ProfilePane({ user, onUserUpdate }: ProfilePaneProps) {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 24 }}>
                 <button onClick={() => setShowAvatarEditor(true)}
                   style={{ padding: '10px 20px', border: 'none', borderRadius: 6, background: 'var(--text)', color: 'var(--bg)', cursor: 'pointer', fontSize: 12, fontFamily: 'var(--font-display)', fontWeight: 700, letterSpacing: '0.06em' }}>
-                  {avatarPixels ? '✏ Edit Avatar' : '+ Draw Avatar'}
+                  {avatarPixels ? 'Edit Avatar' : '+ Draw Avatar'}
                 </button>
                 {avatarPixels && (
                   <button onClick={removeAvatar}
@@ -476,7 +476,7 @@ function StatusMsg({ text, type }: { text: string; type: 'error' | 'success' }) 
       color: type === 'error' ? 'var(--danger)' : 'var(--success)',
       fontFamily: 'var(--font-mono)',
     }}>
-      {type === 'error' ? '✕' : '✓'} {text}
+      {text}
     </div>
   );
 }

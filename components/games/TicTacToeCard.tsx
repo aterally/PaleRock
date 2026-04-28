@@ -165,14 +165,14 @@ export default function TicTacToeCard({
             disabled={acting || timeLeft === 0}
             style={{ ...btn, background: '#1a3a1a', border: '1px solid rgba(74,222,128,0.3)', color: '#4ade80' }}
           >
-            {acting ? <span className="spinner" style={{ width: 10, height: 10 }} /> : '✓ Accept'}
+            {acting ? <span className="spinner" style={{ width: 10, height: 10 }} /> : 'Accept'}
           </button>
           <button
             onClick={() => respond('deny')}
             disabled={acting || timeLeft === 0}
             style={{ ...btn, background: 'rgba(237,66,69,0.08)', border: '1px solid rgba(237,66,69,0.3)', color: '#ed4245' }}
           >
-            ✕ Deny
+            Deny
           </button>
         </div>
       </div>

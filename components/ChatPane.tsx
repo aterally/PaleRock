@@ -232,8 +232,8 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
       {/* Reply banner */}
       {replyTo && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 16px', background: 'var(--bg-2)', borderTop: '1px solid var(--border)', fontSize: 12 }}>
-          <span style={{ color: 'var(--text-3)' }}>↩ Replying to <b style={{ color: 'var(--text-2)' }}>{replyTo.senderUsername}</b>: <span style={{ color: 'var(--text-3)', fontStyle: 'italic' }}>{replyTo.content.slice(0, 60)}{replyTo.content.length > 60 ? '…' : ''}</span></span>
-          <button onClick={() => setReplyTo(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '0 4px' }}>×</button>
+          <span style={{ color: 'var(--text-3)' }}>Replying to <b style={{ color: 'var(--text-2)' }}>{replyTo.senderUsername}</b>: <span style={{ color: 'var(--text-3)', fontStyle: 'italic' }}>{replyTo.content.slice(0, 60)}{replyTo.content.length > 60 ? '...' : ''}</span></span>
+          <button onClick={() => setReplyTo(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '0 4px' }}>x</button>
         </div>
       )}
       {/* Input */}
@@ -335,7 +335,7 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
             inputRef.current?.focus();
             setCtxMenu(null);
           }}>
-            <span>↩</span> Reply
+            <span>Reply</span>
           </button>
           {ctxMenu.msg.senderId === currentUser.id && (
             <>
@@ -344,7 +344,7 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
                 if (confirm('Delete this message?')) deleteMessage(ctxMenu.msg.id);
                 setCtxMenu(null);
               }}>
-                <span>✕</span> Delete
+                <span>Delete</span>
               </button>
             </>
           )}
@@ -520,7 +520,7 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
                     display: 'flex', alignItems: 'center', gap: 4,
                     justifyContent: isMe ? 'flex-end' : 'flex-start',
                   }}>
-                    <span style={{ opacity: 0.5 }}>↩</span>
+                    <span style={{ opacity: 0.5 }}>re:</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-2)' }}>{m.replyTo.senderUsername}</span>
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>{m.replyTo.content}</span>
                   </div>
@@ -555,13 +555,13 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
                     title="Reply"
                     onClick={() => onReply?.(m)}
                     style={{ padding: '3px 7px', fontSize: 11, border: '1px solid var(--border)', borderRadius: 4, background: 'var(--bg-2)', color: 'var(--text-2)', cursor: 'pointer' }}
-                  >↩</button>
+                  >Reply</button>
                   {m.senderId === currentUserId && (
                     <button
                       title="Delete"
                       onClick={() => { if (confirm('Delete this message?')) onDelete?.(m.id); }}
                       style={{ padding: '3px 7px', fontSize: 11, border: '1px solid rgba(237,66,69,0.3)', borderRadius: 4, background: 'rgba(237,66,69,0.08)', color: '#ed4245', cursor: 'pointer' }}
-                    >✕</button>
+                    >Del</button>
                   )}
                 </div>
               </div>
@@ -606,8 +606,8 @@ const IconGamepad = () => (
 );
 
 const GAMES = [
-  { id: 'tictactoe', name: 'Tic Tac Toe', icon: '✕', desc: '2-player · Classic 3×3 grid' },
-  { id: 'connect4',  name: 'Connect 4',   icon: '●', desc: '2-player · Drop pieces, align 4' },
+  { id: 'tictactoe', name: 'Tic Tac Toe', icon: 'X', desc: '2-player · Classic 3x3 grid' },
+  { id: 'connect4',  name: 'Connect 4',   icon: 'O', desc: '2-player · Drop pieces, align 4' },
 ];
 
 const s: Record<string, React.CSSProperties> = {

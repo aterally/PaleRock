@@ -254,7 +254,7 @@ export default function ServerChatPane({
                       >
                         {msg.replyTo && (
                           <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <span style={{ opacity: 0.5 }}>↩</span>
+                            <span style={{ opacity: 0.5 }}>re:</span>
                             <span style={{ fontWeight: 600, color: 'var(--text-2)' }}>{msg.replyTo.authorUsername}</span>
                             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>{msg.replyTo.content}</span>
                           </div>
@@ -262,10 +262,10 @@ export default function ServerChatPane({
                         <p style={styles.messageText}>{msg.content}</p>
                         <div className="msg-actions" style={{ position: 'absolute', top: 0, right: 0, display: 'flex', gap: 4, opacity: 0, transition: 'opacity 0.1s' }}>
                           <button title="Reply" onClick={() => { setReplyTo({ id: msg.id, authorUsername: msg.authorUsername, content: msg.content }); inputRef.current?.focus(); }}
-                            style={{ padding: '2px 6px', fontSize: 11, border: '1px solid var(--border)', borderRadius: 4, background: 'var(--bg-2)', color: 'var(--text-2)', cursor: 'pointer' }}>↩</button>
+                            style={{ padding: '2px 6px', fontSize: 11, border: '1px solid var(--border)', borderRadius: 4, background: 'var(--bg-2)', color: 'var(--text-2)', cursor: 'pointer' }}>Reply</button>
                           {(msg.authorId === currentUser.id || isOwner || hasPermission('manageMessages')) && (
                             <button title="Delete" onClick={() => { if (confirm('Delete?')) deleteMessage(msg.id); }}
-                              style={{ padding: '2px 6px', fontSize: 11, border: '1px solid rgba(237,66,69,0.3)', borderRadius: 4, background: 'rgba(237,66,69,0.08)', color: '#ed4245', cursor: 'pointer' }}>✕</button>
+                              style={{ padding: '2px 6px', fontSize: 11, border: '1px solid rgba(237,66,69,0.3)', borderRadius: 4, background: 'rgba(237,66,69,0.08)', color: '#ed4245', cursor: 'pointer' }}>Del</button>
                           )}
                         </div>
                       </div>
@@ -291,7 +291,7 @@ export default function ServerChatPane({
             inputRef.current?.focus();
             setCtxMenu(null);
           }}>
-            <span>↩</span> Reply
+            <span>Reply</span>
           </button>
           {(ctxMenu.msg.authorId === currentUser.id || isOwner || hasPermission('manageMessages')) && (
             <>
@@ -300,7 +300,7 @@ export default function ServerChatPane({
                 if (confirm('Delete?')) deleteMessage(ctxMenu.msg.id);
                 setCtxMenu(null);
               }}>
-                <span>✕</span> Delete
+                <span>Delete</span>
               </button>
             </>
           )}
@@ -359,8 +359,8 @@ export default function ServerChatPane({
       {/* Reply banner */}
       {replyTo && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 16px', background: 'var(--bg-2)', borderTop: '1px solid var(--border)', fontSize: 12 }}>
-          <span style={{ color: 'var(--text-3)' }}>↩ Replying to <b style={{ color: 'var(--text-2)' }}>{replyTo.authorUsername}</b>: <span style={{ color: 'var(--text-3)', fontStyle: 'italic' }}>{replyTo.content.slice(0, 60)}{replyTo.content.length > 60 ? '…' : ''}</span></span>
-          <button onClick={() => setReplyTo(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '0 4px' }}>×</button>
+          <span style={{ color: 'var(--text-3)' }}>Replying to <b style={{ color: 'var(--text-2)' }}>{replyTo.authorUsername}</b>: <span style={{ color: 'var(--text-3)', fontStyle: 'italic' }}>{replyTo.content.slice(0, 60)}{replyTo.content.length > 60 ? '...' : ''}</span></span>
+          <button onClick={() => setReplyTo(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '0 4px' }}>x</button>
         </div>
       )}
       {/* Input */}
