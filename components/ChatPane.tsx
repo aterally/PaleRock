@@ -590,7 +590,7 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
                 )}
                 {/* Plain text — no bubble */}
                 <div style={{
-                  fontSize: 17,
+                  fontSize: 19,
                   lineHeight: 1.55,
                   wordBreak: 'break-word',
                   whiteSpace: 'pre-wrap',
@@ -601,7 +601,7 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
                   fontWeight: 400,
                   textAlign: isMe ? 'right' : 'left',
                 }}>
-                  {m.content}
+                  {renderContent(m.content)}
                 </div>
                 {/* Hover action buttons */}
                 <div className="msg-actions" style={{
@@ -644,6 +644,16 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
   }
 
   return nodes;
+}
+
+function renderContent(text: string): React.ReactNode {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+  return parts.map((part, i) =>
+    urlRegex.test(part)
+      ? <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: '#7eb8f7', textDecoration: 'underline', wordBreak: 'break-all' }}>{part}</a>
+      : part
+  );
 }
 
 function formatTime(iso: string) {
@@ -702,12 +712,12 @@ const s: Record<string, React.CSSProperties> = {
     fontFamily: "'Cormorant Garamond', Georgia, serif",
     fontWeight: 500,
     fontSize: 17,
-    color: '#e0e0e0',
+    color: '#ffffff',
     letterSpacing: '0.03em',
   },
   headerBio: {
     fontSize: 11,
-    color: '#444',
+    color: '#999',
     fontFamily: "'Inter', system-ui, sans-serif",
     marginTop: 1,
   },
@@ -743,12 +753,12 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 400,
     fontStyle: 'italic',
     fontSize: 20,
-    color: '#555',
+    color: '#aaaaaa',
     marginTop: 6,
   },
   emptyHint: {
     fontSize: 12,
-    color: '#333',
+    color: '#888888',
     fontFamily: "'Inter', system-ui, sans-serif",
     fontWeight: 300,
     letterSpacing: '0.04em',
@@ -756,9 +766,9 @@ const s: Record<string, React.CSSProperties> = {
   loadMore: {
     padding: '5px 16px',
     fontSize: 11,
-    color: '#444',
+    color: '#aaaaaa',
     background: 'transparent',
-    border: '1px solid #1f1f1f',
+    border: '1px solid #444444',
     borderRadius: 20,
     cursor: 'pointer',
     fontFamily: "'Inter', system-ui, sans-serif",
@@ -776,11 +786,11 @@ const s: Record<string, React.CSSProperties> = {
   dateLine: {
     flex: 1,
     height: 1,
-    background: '#2a2a2a',
+    background: '#444444',
   },
   dateLabel: {
     fontSize: 10,
-    color: '#888888',
+    color: '#c0c0c0',
     fontFamily: "'Cormorant Garamond', Georgia, serif",
     fontWeight: 400,
     fontStyle: 'italic',
@@ -789,14 +799,14 @@ const s: Record<string, React.CSSProperties> = {
   },
   metaName: {
     fontSize: 11,
-    color: '#bbbbbb',
+    color: '#ffffff',
     fontFamily: "'Inter', system-ui, sans-serif",
     fontWeight: 500,
     letterSpacing: '0.02em',
   },
   metaTime: {
     fontSize: 10,
-    color: '#888888',
+    color: '#c0c0c0',
     fontFamily: "'Inter', system-ui, sans-serif",
     fontWeight: 300,
   },

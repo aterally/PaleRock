@@ -255,13 +255,13 @@ export default function ServerChatPane({
                         onTouchMove={handleTouchEnd}
                       >
                         {msg.replyTo && (
-                          <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <span style={{ opacity: 0.5 }}>re:</span>
+                          <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 4, fontStyle: 'italic' }}>
+                            <span style={{ opacity: 0.6 }}>↩</span>
                             <span style={{ fontWeight: 600, color: 'var(--text-2)' }}>{msg.replyTo.authorUsername}</span>
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>{msg.replyTo.content}</span>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200, opacity: 0.8 }}>{msg.replyTo.content}</span>
                           </div>
                         )}
-                        <p style={styles.messageText}>{msg.content}</p>
+                        <p style={styles.messageText}>{renderContent(msg.content)}</p>
                         <div className="msg-actions" style={{ position: 'absolute', top: 0, right: 0, display: 'flex', gap: 4, opacity: 0, transition: 'opacity 0.1s' }}>
                           <button title="Reply" onClick={() => { setReplyTo({ id: msg.id, authorUsername: msg.authorUsername, content: msg.content }); inputRef.current?.focus(); }}
                             style={{ padding: '4px 6px', border: '1px solid var(--border)', borderRadius: 4, background: 'var(--bg-2)', color: 'var(--text-2)', cursor: 'pointer', display: 'flex', alignItems: 'center', lineHeight: 1 }}>
@@ -276,6 +276,8 @@ export default function ServerChatPane({
                         </div>
                       </div>
                     );})}
+                  </div>
+                </div>
                   </div>
                 </div>
               );
@@ -414,6 +416,16 @@ const IconSend = () => (
     <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
   </svg>
 );
+
+function renderContent(text: string): React.ReactNode {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+  return parts.map((part, i) =>
+    urlRegex.test(part)
+      ? <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: '#7eb8f7', textDecoration: 'underline', wordBreak: 'break-all' }}>{part}</a>
+      : part
+  );
+}
 
 const styles: Record<string, React.CSSProperties> = {
   pane: {
@@ -567,15 +579,16 @@ const styles: Record<string, React.CSSProperties> = {
   },
   timestamp: {
     fontSize: 11,
-    color: 'var(--text-3)',
+    color: '#c0c0c0',
     letterSpacing: '0.04em',
     fontFamily: 'var(--font-display)',
   },
   messageText: {
-    fontSize: 15,
+    fontSize: 19,
     color: 'var(--text-2)',
     lineHeight: 1.65,
     wordBreak: 'break-word',
+    whiteSpace: 'pre-wrap',
     marginBottom: 2,
     fontFamily: 'var(--font-display)',
   },

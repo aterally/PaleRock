@@ -6,11 +6,11 @@
   --bg-2: #161616;
   --bg-3: #202020;
   --bg-4: #2a2a2a;
-  --border: #333333;
-  --border-bright: #4a4a4a;
+  --border: #444444;
+  --border-bright: #666666;
   --text: #ffffff;
-  --text-2: #cccccc;
-  --text-3: #999999;
+  --text-2: #f0f0f0;
+  --text-3: #c0c0c0;
   --accent: #ffffff;
   --accent-dim: rgba(255,255,255,0.10);
   --accent-hover: rgba(255,255,255,0.16);
