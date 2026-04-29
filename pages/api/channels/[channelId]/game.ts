@@ -119,11 +119,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!game) return res.status(404).json({ error: 'Game not found' });
     if (!game.channelId.equals(new ObjectId(channelId))) return res.status(403).json({ error: 'Game not in this channel' });
 
-    // ── accept / deny ────────────────────────────────────────────────────────
-    if (action === 'accept' || action === 'deny') {
-      if (!game.inviteeId.equals(meId)) return res.status(403).json({ error: 'Not the invitee' });
-      if (game.status !== 'pending') return res.status(409).json({ error: 'Game is not pending' });
-
     // ── expire (callable by either party once invite timeout has passed) ─────
     if (action === 'expire') {
       if (game.status !== 'pending') return res.status(200).json({ ok: true, status: game.status });
@@ -315,7 +310,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // ── GET /game?gameId=xxx — fetch full game state ───────────────────────────
-  else if (req.method === 'GET') {
+  if (req.method === 'GET') {
     const { gameId } = req.query;
     if (!gameId || typeof gameId !== 'string') return res.status(400).json({ error: 'gameId required' });
     const game = await db.collection('games').findOne({ _id: new ObjectId(gameId) });
