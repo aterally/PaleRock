@@ -631,7 +631,6 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'var(--bg-2)',
     border: '1px solid var(--border)',
     borderRadius: 'var(--radius-md)',
-    fontSize: 14,
     color: '#f5f5f5',
     textAlign: 'center',
     fontSize: 16,
