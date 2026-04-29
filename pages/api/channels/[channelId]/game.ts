@@ -315,7 +315,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // ── GET /game?gameId=xxx — fetch full game state ───────────────────────────
-  if (req.method === 'GET') {
+  else if (req.method === 'GET') {
     const { gameId } = req.query;
     if (!gameId || typeof gameId !== 'string') return res.status(400).json({ error: 'gameId required' });
     const game = await db.collection('games').findOne({ _id: new ObjectId(gameId) });
