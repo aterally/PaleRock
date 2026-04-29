@@ -30,8 +30,16 @@ export default function ServerSidebar({
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteCode, setInviteCode] = useState('');
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; type: 'channel' | 'category'; id: string } | null>(null);
+
+  // Optimistic drag state
   const [dragging, setDragging] = useState<{ type: 'channel' | 'category'; id: string } | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
+  // Optimistic ordered lists (null = use server data)
+  const [optimisticChannels, setOptimisticChannels] = useState<ServerChannel[] | null>(null);
+  const [optimisticCategories, setOptimisticCategories] = useState<ServerCategory[] | null>(null);
+
+  const channels = optimisticChannels ?? server.channels;
+  const categories = optimisticCategories ?? server.categories;
 
   function openCreateChannel() {
     setNewChannelName(''); setNewChannelCategory(''); setNewChannelPrivate(false);
@@ -108,44 +116,60 @@ export default function ServerSidebar({
   }
 
   async function reorderChannels(draggedId: string, targetId: string) {
-    const channels = [...server.channels].sort((a, b) => a.position - b.position);
-    const dragIdx = channels.findIndex(c => c.id === draggedId);
-    const targetIdx = channels.findIndex(c => c.id === targetId);
+    const sorted = [...channels].sort((a, b) => a.position - b.position);
+    const dragIdx = sorted.findIndex(c => c.id === draggedId);
+    const targetIdx = sorted.findIndex(c => c.id === targetId);
     if (dragIdx === -1 || targetIdx === -1 || dragIdx === targetIdx) return;
-    const moved = channels.splice(dragIdx, 1)[0];
-    channels.splice(targetIdx, 0, moved);
-    // Single bulk PATCH instead of N sequential requests
-    await fetch(`/api/servers/${server.id}/channels`, {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ order: channels.map((ch, i) => ({ id: ch.id, position: i })) }),
-    });
-    onServerUpdate();
+    const moved = sorted.splice(dragIdx, 1)[0];
+    sorted.splice(targetIdx, 0, moved);
+    const reindexed = sorted.map((ch, i) => ({ ...ch, position: i }));
+    // Optimistic update
+    setOptimisticChannels(reindexed);
+    try {
+      const r = await fetch(`/api/servers/${server.id}/channels`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order: reindexed.map((ch, i) => ({ id: ch.id, position: i })) }),
+      });
+      if (!r.ok) throw new Error('Failed');
+      onServerUpdate();
+    } catch {
+      // Revert on failure
+      setOptimisticChannels(null);
+    }
   }
 
   async function reorderCategories(draggedId: string, targetId: string) {
-    const cats = [...server.categories].sort((a, b) => a.position - b.position);
-    const dragIdx = cats.findIndex(c => c.id === draggedId);
-    const targetIdx = cats.findIndex(c => c.id === targetId);
+    const sorted = [...categories].sort((a, b) => a.position - b.position);
+    const dragIdx = sorted.findIndex(c => c.id === draggedId);
+    const targetIdx = sorted.findIndex(c => c.id === targetId);
     if (dragIdx === -1 || targetIdx === -1 || dragIdx === targetIdx) return;
-    const moved = cats.splice(dragIdx, 1)[0];
-    cats.splice(targetIdx, 0, moved);
-    // Single bulk PATCH instead of N sequential requests
-    await fetch(`/api/servers/${server.id}/categories`, {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ order: cats.map((cat, i) => ({ id: cat.id, position: i })) }),
-    });
-    onServerUpdate();
+    const moved = sorted.splice(dragIdx, 1)[0];
+    sorted.splice(targetIdx, 0, moved);
+    const reindexed = sorted.map((cat, i) => ({ ...cat, position: i }));
+    // Optimistic update
+    setOptimisticCategories(reindexed);
+    try {
+      const r = await fetch(`/api/servers/${server.id}/categories`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order: reindexed.map((cat, i) => ({ id: cat.id, position: i })) }),
+      });
+      if (!r.ok) throw new Error('Failed');
+      onServerUpdate();
+    } catch {
+      // Revert on failure
+      setOptimisticCategories(null);
+    }
   }
 
   const canManageChannels = hasPermission('manageChannels');
   const canInvite = hasPermission('createInvites');
 
-  const uncategorized = server.channels.filter(c => !c.categoryId).sort((a, b) => a.position - b.position);
-  const byCategory = server.categories
+  const uncategorized = channels.filter(c => !c.categoryId).sort((a, b) => a.position - b.position);
+  const byCategory = categories
     .slice().sort((a, b) => a.position - b.position)
     .map(cat => ({
       category: cat,
-      channels: server.channels.filter(c => c.categoryId === cat.id).sort((a, b) => a.position - b.position),
+      channels: channels.filter(c => c.categoryId === cat.id).sort((a, b) => a.position - b.position),
     }));
 
   return (
@@ -185,6 +209,7 @@ export default function ServerSidebar({
                 active={activeChannelId === ch.id}
                 canManage={canManageChannels}
                 isDragOver={dragOver === ch.id}
+                isDragging={dragging?.type === 'channel' && dragging.id === ch.id}
                 onClick={() => onChannelSelect(ch.id)}
                 onContextMenu={canManageChannels ? (e) => {
                   e.preventDefault(); e.stopPropagation();
@@ -504,15 +529,16 @@ function CategorySection({ category, channels, activeChannelId, canManage, dragg
   onChannelDrop: (chId: string, catId: string) => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
+  const isCatDragging = dragging?.type === 'category' && dragging.id === category.id;
   return (
     <div
-      style={{ ...styles.section, ...(isCategoryDragOver ? { background: 'rgba(255,255,255,0.03)', borderRadius: 6 } : {}) }}
+      style={{ ...styles.section, ...(isCategoryDragOver ? { background: 'rgba(255,255,255,0.03)', borderRadius: 6 } : {}), opacity: isCatDragging ? 0.4 : 1, transition: 'opacity 0.15s' }}
       onDragOver={canManage ? onCategoryDragOver : undefined}
       onDragLeave={canManage ? onCategoryDragLeave : undefined}
       onDrop={canManage ? onCategoryDrop : undefined}
     >
       <button
-        style={{ ...styles.categoryHeader, cursor: canManage ? 'grab' : 'pointer' }}
+        style={{ ...styles.categoryHeader, cursor: 'pointer' }}
         onClick={() => setCollapsed(v => !v)}
         onContextMenu={onCategoryContextMenu}
         draggable={canManage}
@@ -530,6 +556,7 @@ function CategorySection({ category, channels, activeChannelId, canManage, dragg
           active={activeChannelId === ch.id}
           canManage={canManage}
           isDragOver={dragOver === ch.id}
+          isDragging={dragging?.type === 'channel' && dragging.id === ch.id}
           onClick={() => onChannelSelect(ch.id)}
           onContextMenu={canManage ? (e) => onChannelContextMenu(e, ch.id) : undefined}
           onDragStart={() => setDragging({ type: 'channel', id: ch.id })}
@@ -543,13 +570,14 @@ function CategorySection({ category, channels, activeChannelId, canManage, dragg
   );
 }
 
-function ChannelItem({ channel, active, onClick, onContextMenu, canManage, isDragOver, onDragStart, onDragOver, onDragLeave, onDrop, onDragEnd }: {
+function ChannelItem({ channel, active, onClick, onContextMenu, canManage, isDragOver, isDragging, onDragStart, onDragOver, onDragLeave, onDrop, onDragEnd }: {
   channel: ServerChannel;
   active: boolean;
   onClick: () => void;
   onContextMenu?: (e: React.MouseEvent) => void;
   canManage?: boolean;
   isDragOver?: boolean;
+  isDragging?: boolean;
   onDragStart?: () => void;
   onDragOver?: (e: React.DragEvent) => void;
   onDragLeave?: () => void;
@@ -563,8 +591,11 @@ function ChannelItem({ channel, active, onClick, onContextMenu, canManage, isDra
         ...styles.channelItem,
         background: isDragOver ? 'var(--bg-3)' : active ? 'var(--bg-3)' : 'transparent',
         color: active ? '#ffffff' : '#e0e0e0',
-        borderLeft: active ? '2px solid var(--text)' : isDragOver ? '2px solid rgba(255,255,255,0.2)' : '2px solid transparent',
-        cursor: canManage ? 'grab' : 'pointer',
+        borderLeft: active ? '2px solid var(--text)' : isDragOver ? '2px solid rgba(255,255,255,0.4)' : '2px solid transparent',
+        cursor: 'pointer',
+        opacity: isDragging ? 0.4 : 1,
+        transform: isDragOver ? 'translateY(-1px)' : 'none',
+        transition: 'all var(--transition)',
       }}
       onClick={onClick}
       onContextMenu={onContextMenu}
@@ -627,7 +658,7 @@ const IconFolder = () => (
 );
 
 const styles: Record<string, React.CSSProperties> = {
-  sidebar: { width: 260, minWidth: 260, height: '100dvh', background: 'var(--bg-1)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' },
+  sidebar: { width: 280, minWidth: 280, height: '100dvh', background: 'var(--bg-1)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' },
   header: { padding: '0 16px', height: 72, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 },
   backBtn: { color: 'var(--text-3)', padding: 4, borderRadius: 'var(--radius)', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'color var(--transition)', flexShrink: 0 },
   serverName: { flex: 1, fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 20, letterSpacing: '0.06em', color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },

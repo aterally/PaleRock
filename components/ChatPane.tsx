@@ -278,10 +278,10 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
             }} />
           </div>
         )}
-        <div style={{ flex: 1 }}>
-          <div style={s.headerName}>{otherUser?.username || '…'}</div>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 0 }}>
+          <div style={{ ...s.headerName, marginTop: 4 }}>{otherUser?.username || '…'}</div>
           {dmLastSeenLabel ? (
-            <div style={{ fontSize: 14, color: dmIsOnline ? '#23a55a' : 'var(--text-3)', fontFamily: "'Times New Roman', Times, serif", letterSpacing: '0.02em', marginTop: 2 }}>
+            <div style={{ fontSize: 14, color: dmIsOnline ? '#23a55a' : 'var(--text-3)', fontFamily: "'Times New Roman', Times, serif", letterSpacing: '0.02em', marginTop: -1 }}>
               {dmLastSeenLabel}
             </div>
           ) : otherUser?.bio ? (
@@ -595,7 +595,7 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
         flexDirection: 'row',
         justifyContent: isMe ? 'flex-end' : 'flex-start',
         width: '100%',
-        marginBottom: 12,
+        marginBottom: 7,
         gap: 8,
       }}>
         {/* Avatar — left for others */}
@@ -693,8 +693,8 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
                 )}
                 {/* Plain text — no bubble */}
                 <div style={{
-                  fontSize: 22,
-                  lineHeight: 1.6,
+                  fontSize: 18,
+                  lineHeight: 1.5,
                   wordBreak: 'break-word',
                   whiteSpace: 'pre-wrap',
                   letterSpacing: '0.01em',

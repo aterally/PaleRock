@@ -480,7 +480,7 @@ function MemberRow({ member, currentUserId, ownerId, roles, st, onCtx, onCtxTouc
 
 const st: Record<string, React.CSSProperties> = {
   pane: { width: 270, minWidth: 270, height: '100dvh', background: 'var(--bg-1)', borderLeft: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' },
-  header: { padding: '0 18px', height: 64, borderBottom: '1px solid var(--border)', flexShrink: 0, display: 'flex', alignItems: 'center' },
+  header: { padding: '0 18px', height: 60, borderBottom: '1px solid var(--border)', flexShrink: 0, display: 'flex', alignItems: 'center' },
   title: { fontSize: 11, letterSpacing: '0.14em', color: 'var(--text-3)', fontFamily: 'var(--font-display)', fontWeight: 700 },
   list: { flex: 1, overflowY: 'auto', padding: '10px 10px', display: 'flex', flexDirection: 'column', gap: 2 },
   memberItem: { display: 'flex', alignItems: 'center', gap: 10, padding: '9px 10px', borderRadius: 'var(--radius-md)', transition: 'background var(--transition)', cursor: 'default' },
