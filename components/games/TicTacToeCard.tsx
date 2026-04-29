@@ -54,11 +54,10 @@ export default function TicTacToeCard({
     return () => clearInterval(interval);
   }, [game?.status, fetchGame]);
 
-  // 60s countdown for invitee
+  // 60s countdown — runs for both inviter and invitee
   useEffect(() => {
     if (!game || game.status !== 'pending') return;
     const isInvitee = game.inviteeId === currentUserId;
-    if (!isInvitee) return;
 
     function tick() {
       if (!game) return;
@@ -66,12 +65,20 @@ export default function TicTacToeCard({
       const left = Math.max(0, 60 - Math.floor(elapsed / 1000));
       setTimeLeft(left);
       if (left === 0) {
-        // auto-deny
-        fetch(`/api/channels/${channelId}/game`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ gameId, action: 'deny' }),
-        }).then(() => fetchGame());
+        if (isInvitee) {
+          // Invitee triggers the deny
+          fetch(`/api/channels/${channelId}/game`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ gameId, action: 'deny' }),
+          }).then(() => fetchGame());
+        } else {
+          // Inviter: also call deny (handles case where invitee never opened the app)
+          fetch(`/api/channels/${channelId}/game`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ gameId, action: 'deny' }),
+          }).then(() => fetchGame()).catch(() => fetchGame());
+        }
       }
     }
     tick();
