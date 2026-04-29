@@ -508,7 +508,19 @@ function CategorySection({ category, channels, activeChannelId, canManage, dragg
   onChannelDrop: (chId: string, catId: string) => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [collapsing, setCollapsing] = useState(false);
   const isCatDragging = dragging?.type === 'category' && dragging.id === category.id;
+
+  function toggleCollapse() {
+    if (!collapsed) {
+      // Animate out then hide
+      setCollapsing(true);
+      setTimeout(() => { setCollapsed(true); setCollapsing(false); }, 160);
+    } else {
+      setCollapsed(false);
+    }
+  }
+
   return (
     <div
       className="pr-section"
@@ -519,7 +531,7 @@ function CategorySection({ category, channels, activeChannelId, canManage, dragg
     >
       <button
         className="pr-category-header"
-        onClick={() => setCollapsed(v => !v)}
+        onClick={toggleCollapse}
         onContextMenu={onCategoryContextMenu}
         draggable={canManage}
         onDragStart={canManage ? onCategoryDragStart : undefined}
@@ -530,7 +542,7 @@ function CategorySection({ category, channels, activeChannelId, canManage, dragg
         <span className={`pr-category-arrow pr-category-arrow--${collapsed ? 'closed' : 'open'}`}>›</span>
         <span className="pr-category-name">{category.name}</span>
       </button>
-      {!collapsed && channels.map(ch => (
+      {(!collapsed || collapsing) && channels.map(ch => (
         <ChannelItem
           key={ch.id}
           channel={ch}
@@ -538,6 +550,7 @@ function CategorySection({ category, channels, activeChannelId, canManage, dragg
           canManage={canManage}
           isDragOver={dragOver === ch.id}
           isDragging={dragging?.type === 'channel' && dragging.id === ch.id}
+          isCollapsing={collapsing}
           onClick={() => onChannelSelect(ch.id)}
           onContextMenu={canManage ? (e) => onChannelContextMenu(e, ch.id) : undefined}
           onDragStart={() => setDragging({ type: 'channel', id: ch.id })}
@@ -551,7 +564,7 @@ function CategorySection({ category, channels, activeChannelId, canManage, dragg
   );
 }
 
-function ChannelItem({ channel, active, onClick, onContextMenu, canManage, isDragOver, isDragging, onDragStart, onDragOver, onDragLeave, onDrop, onDragEnd }: {
+function ChannelItem({ channel, active, onClick, onContextMenu, canManage, isDragOver, isDragging, isCollapsing, onDragStart, onDragOver, onDragLeave, onDrop, onDragEnd }: {
   channel: ServerChannel;
   active: boolean;
   onClick: () => void;
@@ -559,6 +572,7 @@ function ChannelItem({ channel, active, onClick, onContextMenu, canManage, isDra
   canManage?: boolean;
   isDragOver?: boolean;
   isDragging?: boolean;
+  isCollapsing?: boolean;
   onDragStart?: () => void;
   onDragOver?: (e: React.DragEvent) => void;
   onDragLeave?: () => void;
@@ -570,6 +584,7 @@ function ChannelItem({ channel, active, onClick, onContextMenu, canManage, isDra
     active ? 'pr-channel-item--active' : '',
     isDragOver ? 'pr-channel-item--drag-over' : '',
     isDragging ? 'pr-channel-item--dragging' : '',
+    isCollapsing ? 'pr-channel-item--collapsing' : '',
   ].filter(Boolean).join(' ');
 
   return (

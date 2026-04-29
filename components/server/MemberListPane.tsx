@@ -100,16 +100,14 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
   function openCtx(e: React.MouseEvent, m: typeof allMembers[0]) {
     e.preventDefault(); e.stopPropagation();
     if (m.userId === currentUserId) return;
-    if (!(canKick || canBan || canMute || canManageRoles)) return;
     setProfile(null);
-    const x = Math.min(e.clientX, window.innerWidth - 200);
+    const x = Math.min(e.clientX, window.innerWidth - 220);
     const y = Math.min(e.clientY, window.innerHeight - 260);
     setCtxMenu({ x, y, userId: m.userId, username: m.username });
   }
 
   function openCtxTouch(m: typeof allMembers[0]) {
     if (m.userId === currentUserId) return;
-    if (!(canKick || canBan || canMute || canManageRoles)) return;
     setProfile(null);
     // On touch: anchor to bottom-center of screen for easy thumb reach
     const x = Math.max(8, (window.innerWidth - 200) / 2);
@@ -313,7 +311,7 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
             <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', fontFamily: 'var(--font-display)', marginBottom: 4 }}>Mute {muteModal.username}</div>
             <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 16 }}>Select how long to mute this member</div>
             <label style={st.label}>DURATION (MINUTES)</label>
-            <input style={st.input} type="number" min="1" max="10080" value={muteDuration} onChange={e => setMuteDuration(e.target.value)} />
+            <input style={st.input} type="text" inputMode="numeric" pattern="[0-9]*" min="1" max="10080" value={muteDuration} onChange={e => { const v = e.target.value.replace(/[^0-9]/g, ''); setMuteDuration(v); }} />
             <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' as const }}>
               {([['5m','5'],['15m','15'],['30m','30'],['1h','60'],['6h','360'],['24h','1440']] as [string,string][]).map(([label, val]) => (
                 <button key={label} onClick={() => setMuteDuration(val)} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 4, border: '1px solid var(--border)', background: muteDuration === val ? 'var(--bg-3)' : 'transparent', color: muteDuration === val ? 'var(--text)' : 'var(--text-3)', cursor: 'pointer' }}>{label}</button>

@@ -189,7 +189,7 @@ export default function ServerChatPane({
       <div className="pr-chat-message-area">
         {loading ? (
           <div style={styles.loadingState}>
-            <span className="spinner" style={{ width: 18, height: 18 }} />
+            <span className="spinner spinner--lg" />
           </div>
         ) : messages.length === 0 ? (
           <div style={styles.emptyState}>

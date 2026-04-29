@@ -136,13 +136,21 @@ input, textarea {
 }
 
 .spinner {
+  display: inline-block;
   width: 16px;
   height: 16px;
-  border: 1.5px solid var(--border-bright);
-  border-top-color: var(--text);
+  border: 1.5px solid #333;
+  border-top-color: #fff;
   border-radius: 50%;
-  animation: spin 0.7s linear infinite;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
 }
+/* Size variants */
+.spinner--sm { width: 12px; height: 12px; border-width: 1.5px; }
+.spinner--xs { width: 10px; height: 10px; border-width: 1.5px; }
+.spinner--lg { width: 20px; height: 20px; border-width: 2px; }
+/* Dark background variant (e.g. on white/light buttons) */
+.spinner--dark { border-color: rgba(0,0,0,0.2); border-top-color: #000; }
 
 /* Full-page loader — consistent with the initial Palerock loading screen */
 .palerock-loader {
@@ -290,6 +298,11 @@ select option {
 @keyframes categoryExpand {
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes categoryCollapse {
+  from { opacity: 1; transform: translateY(0); max-height: 400px; }
+  to   { opacity: 0; transform: translateY(-4px); max-height: 0; }
 }
 
 /* ============================================================
@@ -447,6 +460,11 @@ select option {
   border-left: 2px solid transparent;
   transition: background 0.15s ease, color 0.15s ease, border-left-color 0.15s ease, transform 0.12s ease;
   animation: categoryExpand 0.18s ease forwards;
+}
+.pr-channel-item--collapsing {
+  animation: categoryCollapse 0.16s ease forwards;
+  pointer-events: none;
+  overflow: hidden;
 }
 .pr-channel-item:hover {
   background: var(--bg-2);
@@ -926,7 +944,7 @@ select option {
 .pr-message-author {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 14px;
+  font-size: 15px;
   letter-spacing: 0.02em;
   line-height: 1.4;
   cursor: pointer;
@@ -935,20 +953,22 @@ select option {
 .pr-message-author:hover { opacity: 0.75; }
 
 .pr-message-timestamp {
-  font-size: 11px;
+  font-size: 12px;
   color: #d4d4d4;
   letter-spacing: 0.04em;
   font-family: var(--font-display);
 }
 
 .pr-message-text {
-  font-size: 15px;
+  font-size: 17px;
   color: #f5f5f5;
-  line-height: 1.45;
+  line-height: 1.6;
   word-break: break-word;
   white-space: pre-wrap;
   margin-bottom: 1px;
   font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 0.01em;
 }
 
 .pr-input-area {

@@ -48,7 +48,6 @@ export default function ServerSettingsModal({ server, currentUser, isOwner, hasP
 
   return (
     <div style={s.overlay} onClick={onClose}>
-      <style>{`@keyframes pr-spin { to { transform: rotate(360deg); } }`}</style>
       <div style={s.modal} onClick={e => e.stopPropagation()}>
         {/* Left sidebar */}
         <div style={s.sidebar}>
@@ -72,7 +71,7 @@ export default function ServerSettingsModal({ server, currentUser, isOwner, hasP
               >
                 <span style={s.tabIcon}>{t.icon}</span>
                 {t.label}
-                {tab === t.id && <span style={s.tabActiveDot} />}
+                {/* dot removed */}
               </button>
             ))}
           </div>
@@ -466,7 +465,7 @@ function MembersTab({ server, currentUserId, isOwner, hasPermission, onUpdate }:
                               }}
                             >
                               {isRoleLoading ? (
-                                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'pr-spin 0.7s linear infinite' }}><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                                <span className="spinner spinner--xs" />
                               ) : (hasRole ? '✓ ' : '+ ')}{!isRoleLoading && role.name}
                             </button>
                           );
@@ -588,7 +587,7 @@ function InvitesTab({ server }: { server: ServerData }) {
       )}
 
       {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '32px 0' }}><span className="spinner" style={{ width: 18, height: 18 }} /></div>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '32px 0' }}><span className="spinner spinner--lg" /></div>
       ) : invites.length === 0 ? (
         <div style={{ ...s.card, textAlign: 'center', padding: '32px 16px' }}>
           <div style={{ fontSize: 24, marginBottom: 8 }}>⊕</div>
@@ -656,7 +655,7 @@ function BannedTab({ server, hasPermission, onUpdate }: { server: ServerData; ha
     <div style={s.tabContent}>
       <SectionHeader title="Banned Users" subtitle={`${bans.length} banned user${bans.length !== 1 ? 's' : ''}`} />
       {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '32px 0' }}><span className="spinner" style={{ width: 18, height: 18 }} /></div>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '32px 0' }}><span className="spinner spinner--lg" /></div>
       ) : bans.length === 0 ? (
         <div style={{ ...s.card, textAlign: 'center', padding: '32px 16px' }}>
           <div style={{ fontSize: 24, marginBottom: 8 }}>⊘</div>
@@ -747,8 +746,8 @@ function SectionHeader({ title, subtitle, danger }: { title: string; subtitle?: 
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const s: Record<string, React.CSSProperties> = {
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 800, backdropFilter: 'blur(4px)' },
-  modal: { background: 'var(--bg-1)', border: '1px solid var(--border)', borderRadius: 8, display: 'flex', width: 'min(96vw, 1100px)', height: 'min(92vh, 840px)', overflow: 'hidden', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' },
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 800, backdropFilter: 'blur(4px)', animation: 'fadeIn 0.18s ease forwards' },
+  modal: { background: 'var(--bg-1)', border: '1px solid var(--border)', borderRadius: 8, display: 'flex', width: 'min(96vw, 1100px)', height: 'min(92vh, 840px)', overflow: 'hidden', boxShadow: '0 24px 64px rgba(0,0,0,0.5)', animation: 'scaleIn 0.2s cubic-bezier(0.34,1.1,0.64,1) forwards' },
 
   // Sidebar
   sidebar: { width: 220, minWidth: 220, background: 'var(--bg-2)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden' },

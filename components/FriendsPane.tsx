@@ -103,7 +103,7 @@ export default function FriendsPane({ onRequestAccepted, onPendingCountChange }:
               ...styles.addBtn,
               opacity: addLoading || !addUsername.trim() ? 0.5 : 1,
             }}>
-              {addLoading ? <span className="spinner" style={{ width: 12, height: 12, borderTopColor: '#000' }} /> : 'SEND'}
+              {addLoading ? <span className="spinner spinner--sm spinner--dark" /> : 'SEND'}
             </button>
           </form>
           {addError && (

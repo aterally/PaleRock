@@ -29,6 +29,9 @@ function PixelAvatarEditor({ initialPixels, onSave, onCancel }: {
   const [pixels, setPixels] = useState<string[][]>(() => initialPixels ? initialPixels.map(r => [...r]) : makeEmptyGrid());
   const [selectedColor, setSelectedColor] = useState('#ffffff');
   const [eraser, setEraser] = useState(false);
+  const [fillMode, setFillMode] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
   const [painting, setPainting] = useState(false);
   const gridRef = useRef<HTMLDivElement>(null);
 
@@ -76,7 +79,7 @@ function PixelAvatarEditor({ initialPixels, onSave, onCancel }: {
     setPainting(true);
     const cell = clientToCell(e.clientX, e.clientY);
     if (!cell) return;
-    if (e.shiftKey) bucketFill(cell[0], cell[1]);
+    if (e.shiftKey || fillMode) bucketFill(cell[0], cell[1]);
     else paint(cell[0], cell[1]);
   }
 
@@ -98,7 +101,7 @@ function PixelAvatarEditor({ initialPixels, onSave, onCancel }: {
       onClick={onCancel}
     >
       <div
-        style={{ background: 'var(--bg-1)', border: '1px solid var(--border)', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', gap: 14, width: 'min(560px, 96vw)', margin: 'auto' }}
+        style={{ background: 'var(--bg-1)', border: '1px solid var(--border)', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', gap: 14, width: 'min(560px, 96vw)', margin: 'auto', overflow: 'hidden', maxWidth: '96vw', boxSizing: 'border-box', position: 'relative' }}
         onClick={e => e.stopPropagation()}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -107,11 +110,11 @@ function PixelAvatarEditor({ initialPixels, onSave, onCancel }: {
         </div>
 
         {/* Responsive layout: row on desktop, column on mobile */}
-        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap', overflow: 'hidden' }}>
           {/* Canvas — uses pointer events for unified mouse+touch */}
           <div
             ref={gridRef}
-            style={{ display: 'grid', gridTemplateColumns: `repeat(${GRID}, ${CELL}px)`, border: '1px solid var(--border)', flexShrink: 0, userSelect: 'none', cursor: 'crosshair', touchAction: 'none' }}
+            style={{ display: 'grid', gridTemplateColumns: `repeat(${GRID}, ${CELL}px)`, border: '1px solid var(--border)', flexShrink: 0, userSelect: 'none', cursor: 'crosshair', touchAction: 'none', overflow: 'hidden', borderRadius: 2, maxWidth: '100%' }}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
@@ -160,7 +163,7 @@ function PixelAvatarEditor({ initialPixels, onSave, onCancel }: {
               <div style={{ fontSize: 9, letterSpacing: '0.12em', color: 'var(--text-3)', fontFamily: 'var(--font-display)', fontWeight: 700, marginBottom: 6 }}>CURRENT COLOR</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ width: 24, height: 24, borderRadius: 4, background: eraser ? 'transparent' : selectedColor, border: '1px solid var(--border)' }} />
-                <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-2)' }}>{eraser ? 'eraser' : selectedColor}</span>
+                <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-2)' }}>{eraser ? 'eraser' : fillMode ? `fill: ${selectedColor}` : selectedColor}</span>
               </div>
             </div>
 
@@ -175,11 +178,15 @@ function PixelAvatarEditor({ initialPixels, onSave, onCancel }: {
             </div>
 
             <div style={{ display: 'flex', gap: 6 }}>
-              <button onClick={() => setEraser(false)}
-                style={{ flex: 1, padding: '6px 0', border: '1px solid var(--border)', borderRadius: 4, background: !eraser ? 'var(--bg-3)' : 'transparent', color: !eraser ? 'var(--text)' : 'var(--text-3)', cursor: 'pointer', fontSize: 10, fontFamily: 'var(--font-display)', fontWeight: 600 }}>
+              <button onClick={() => { setEraser(false); setFillMode(false); }}
+                style={{ flex: 1, padding: '6px 0', border: '1px solid var(--border)', borderRadius: 4, background: (!eraser && !fillMode) ? 'var(--bg-3)' : 'transparent', color: (!eraser && !fillMode) ? 'var(--text)' : 'var(--text-3)', cursor: 'pointer', fontSize: 10, fontFamily: 'var(--font-display)', fontWeight: 600 }}>
                 Draw
               </button>
-              <button onClick={() => setEraser(true)}
+              <button onClick={() => { setEraser(false); setFillMode(true); }}
+                style={{ flex: 1, padding: '6px 0', border: '1px solid var(--border)', borderRadius: 4, background: fillMode ? 'var(--bg-3)' : 'transparent', color: fillMode ? 'var(--text)' : 'var(--text-3)', cursor: 'pointer', fontSize: 10, fontFamily: 'var(--font-display)', fontWeight: 600 }}>
+                Fill
+              </button>
+              <button onClick={() => { setEraser(true); setFillMode(false); }}
                 style={{ flex: 1, padding: '6px 0', border: '1px solid var(--border)', borderRadius: 4, background: eraser ? 'var(--bg-3)' : 'transparent', color: eraser ? 'var(--text)' : 'var(--text-3)', cursor: 'pointer', fontSize: 10, fontFamily: 'var(--font-display)', fontWeight: 600 }}>
                 Erase
               </button>
@@ -187,18 +194,29 @@ function PixelAvatarEditor({ initialPixels, onSave, onCancel }: {
 
             <div style={{ fontSize: 9, color: 'var(--text-3)', lineHeight: 1.7 }}>
               <b>Touch/drag</b> to paint<br/>
-              <b>Shift+tap</b> to bucket fill
+              <b>Fill</b> tool or <b>Shift+tap</b> to bucket fill
             </div>
 
-            <button onClick={() => setPixels(makeEmptyGrid())}
+            <button onClick={() => setConfirmClear(true)}
               style={{ padding: '6px 10px', border: '1px solid rgba(237,66,69,0.3)', borderRadius: 4, background: 'rgba(237,66,69,0.08)', color: '#ed4245', cursor: 'pointer', fontSize: 10, fontFamily: 'var(--font-display)', fontWeight: 600 }}>
               Clear All
             </button>
           </div>
         </div>
 
+        {/* Confirm clear dialog */}
+        {confirmClear && (
+          <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <span style={{ fontSize: 12, color: 'var(--text-2)', fontFamily: 'var(--font-display)' }}>Clear all pixels?</span>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button onClick={() => setConfirmClear(false)} style={{ padding: '5px 12px', border: '1px solid var(--border)', borderRadius: 4, background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11, fontFamily: 'var(--font-display)' }}>Keep</button>
+              <button onClick={() => { setPixels(makeEmptyGrid()); setConfirmClear(false); }} style={{ padding: '5px 12px', border: 'none', borderRadius: 4, background: 'var(--danger)', color: '#fff', cursor: 'pointer', fontSize: 11, fontFamily: 'var(--font-display)', fontWeight: 700 }}>Clear</button>
+            </div>
+          </div>
+        )}
+
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <button onClick={onCancel}
+          <button onClick={() => setConfirmCancel(true)}
             style={{ padding: '8px 16px', border: '1px solid var(--border)', borderRadius: 6, background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>
             Cancel
           </button>
@@ -207,6 +225,17 @@ function PixelAvatarEditor({ initialPixels, onSave, onCancel }: {
             Save Avatar
           </button>
         </div>
+
+        {/* Confirm cancel dialog */}
+        {confirmCancel && (
+          <div style={{ position: 'absolute', bottom: 20, left: 20, right: 20, background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, zIndex: 10 }}>
+            <span style={{ fontSize: 12, color: 'var(--text-2)', fontFamily: 'var(--font-display)' }}>Discard your drawing?</span>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button onClick={() => setConfirmCancel(false)} style={{ padding: '5px 12px', border: '1px solid var(--border)', borderRadius: 4, background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11, fontFamily: 'var(--font-display)' }}>Keep editing</button>
+              <button onClick={onCancel} style={{ padding: '5px 12px', border: 'none', borderRadius: 4, background: 'var(--danger)', color: '#fff', cursor: 'pointer', fontSize: 11, fontFamily: 'var(--font-display)', fontWeight: 700 }}>Discard</button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

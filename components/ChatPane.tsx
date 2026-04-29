@@ -363,13 +363,13 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
           {hasMore && (
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
               <button onClick={loadMore} disabled={loadingMore} style={s.loadMore}>
-                {loadingMore ? <span className="spinner" style={{ width: 11, height: 11 }} /> : '↑ Earlier messages'}
+                {loadingMore ? <span className="spinner spinner--sm" /> : '↑ Earlier messages'}
               </button>
             </div>
           )}
 
           {loading ? (
-            <div style={s.center}><span className="spinner" style={{ width: 18, height: 18 }} /></div>
+            <div style={s.center}><span className="spinner spinner--lg" /></div>
           ) : messages.length === 0 ? (
             <div style={s.empty}>
               {otherUser && <Avatar username={otherUser.username} avatar={otherUser.avatar} size={56} />}
@@ -431,7 +431,7 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
               }}
             >
               {launchingGame
-                ? <span className="spinner" style={{ width: 12, height: 12 }} />
+                ? <span className="spinner spinner--sm" />
                 : <IconGamepad />}
             </button>
             {/* Game picker panel */}
@@ -484,7 +484,7 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
           style={{ ...s.sendBtn, opacity: !input.trim() || sending ? 0.25 : 1 }}
         >
           {sending
-            ? <span className="spinner" style={{ width: 13, height: 13, borderTopColor: '#000' }} />
+            ? <span className="spinner spinner--sm spinner--dark" />
             : <IconSend />}
         </button>
       </div>

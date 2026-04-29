@@ -137,7 +137,7 @@ export default function Connect4Card({
     return (
       <div style={card}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-3)', fontSize: 14 }}>
-          <span className="spinner" style={{ width: 12, height: 12 }} />
+          <span className="spinner spinner--sm" />
           Loading game...
         </div>
       </div>
@@ -184,7 +184,7 @@ export default function Connect4Card({
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={() => respond('accept')} disabled={acting || timeLeft === 0}
             style={{ ...btn, background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.3)', color: '#4ade80' }}>
-            {acting ? <span className="spinner" style={{ width: 10, height: 10 }} /> : 'Accept'}
+            {acting ? <span className="spinner spinner--xs" /> : 'Accept'}
           </button>
           <button onClick={() => respond('deny')} disabled={acting || timeLeft === 0}
             style={{ ...btn, background: 'rgba(237,66,69,0.08)', border: '1px solid rgba(237,66,69,0.3)', color: '#ed4245' }}>
