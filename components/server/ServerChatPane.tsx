@@ -278,8 +278,6 @@ export default function ServerChatPane({
                     );})}
                   </div>
                 </div>
-                  </div>
-                </div>
               );
             })}
             <div ref={bottomRef} />
