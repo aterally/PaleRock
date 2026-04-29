@@ -1,16 +1,16 @@
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Inter:wght@300;400;500;600&display=swap');
 
 :root {
-  --bg: #060606;
-  --bg-1: #111111;
-  --bg-2: #1a1a1a;
-  --bg-3: #252525;
-  --bg-4: #303030;
-  --border: #444444;
-  --border-bright: #666666;
+  --bg: #080808;
+  --bg-1: #131313;
+  --bg-2: #1e1e1e;
+  --bg-3: #2a2a2a;
+  --bg-4: #363636;
+  --border: #505050;
+  --border-bright: #707070;
   --text: #ffffff;
-  --text-2: #f0f0f0;
-  --text-3: #c0c0c0;
+  --text-2: #f5f5f5;
+  --text-3: #d4d4d4;
   --accent: #ffffff;
   --accent-dim: rgba(255,255,255,0.10);
   --accent-hover: rgba(255,255,255,0.16);
@@ -39,8 +39,8 @@ html, body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-display);
-  font-size: 15px;
-  line-height: 1.6;
+  font-size: 17px;
+  line-height: 1.65;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow: hidden;
@@ -65,7 +65,7 @@ button {
 
 input, textarea {
   font-family: var(--font-display);
-  font-size: 15px;
+  font-size: 17px;
 }
 
 /* Scrollbar */

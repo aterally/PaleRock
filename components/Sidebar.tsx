@@ -175,12 +175,12 @@ function NavItem({ label, active, onClick, icon, badge }: {
     <button onClick={onClick} style={{
       ...styles.navItem,
       background: active ? 'var(--bg-3)' : 'transparent',
-      color: active ? 'var(--text)' : 'var(--text-3)',
+      color: active ? '#ffffff' : '#d4d4d4',
       borderLeft: active ? '2px solid var(--text)' : '2px solid transparent',
     }}>
       <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         {icon}
-        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 11, letterSpacing: '0.08em' }}>
+        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14, letterSpacing: '0.06em' }}>
           {label}
         </span>
       </span>
@@ -199,7 +199,7 @@ function DmItem({ channel, active, onClick }: { channel: Channel; active: boolea
     <button onClick={onClick} style={{
       ...styles.dmItem,
       background: active ? 'var(--bg-3)' : 'transparent',
-      color: active ? 'var(--text)' : 'var(--text-2)',
+      color: active ? '#ffffff' : '#e8e8e8',
     }}>
       <div style={{ position: 'relative', flexShrink: 0 }}>
         <Avatar username={other.username} avatar={(other as any).avatar} size={24} />
@@ -211,15 +211,15 @@ function DmItem({ channel, active, onClick }: { channel: Channel; active: boolea
         }} />
       </div>
       <div style={{ flex: 1, overflow: 'hidden', textAlign: 'left' }}>
-        <div style={{ fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-display)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-display)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {other.username}
         </div>
         {channel.lastMessage ? (
-          <div style={{ fontSize: 11, color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: 13, color: '#c8c8c8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {channel.lastMessage.content.slice(0, 30)}{channel.lastMessage.content.length > 30 ? '…' : ''}
           </div>
         ) : (
-          <div style={{ fontSize: 11, color: isOnline ? '#23a55a' : 'var(--text-3)' }}>
+          <div style={{ fontSize: 12, color: isOnline ? '#23a55a' : '#aaaaaa' }}>
             {isOnline ? 'Online' : other.lastOnline ? (() => {
               const diff = Date.now() - new Date(other.lastOnline!).getTime();
               const mins = Math.floor(diff / 60000);
@@ -373,7 +373,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   logoText: {
     fontFamily: 'var(--font-display)', fontWeight: 800,
-    fontSize: 14, letterSpacing: '0.18em', color: 'var(--text)',
+    fontSize: 13, letterSpacing: '0.16em', color: '#ffffff',
   },
   nav: {
     padding: '12px 0',
@@ -384,7 +384,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '9px 16px',
+    padding: '11px 18px',
     cursor: 'pointer',
     transition: 'background var(--transition), color var(--transition)',
     border: 'none',
@@ -407,13 +407,13 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
-    padding: '12px 0 8px',
+    padding: '14px 0 10px',
   },
   sectionLabel: {
     padding: '0 16px 8px',
-    fontSize: 10,
+    fontSize: 13,
     letterSpacing: '0.14em',
-    color: 'var(--text-3)',
+    color: '#d4d4d4',
     fontFamily: 'var(--font-display)',
     fontWeight: 700,
   },
@@ -429,7 +429,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     gap: 8,
-    padding: '7px 12px',
+    padding: '10px 14px',
     borderRadius: 'var(--radius-md)',
     cursor: 'pointer',
     border: 'none',
@@ -439,7 +439,7 @@ const styles: Record<string, React.CSSProperties> = {
   emptyDm: {
     padding: '16px',
     fontSize: 11,
-    color: 'var(--text-3)',
+    color: '#d4d4d4',
     lineHeight: 1.8,
     textAlign: 'center',
   },
@@ -479,14 +479,14 @@ const styles: Record<string, React.CSSProperties> = {
     whiteSpace: 'nowrap',
   },
   userStatus: {
-    fontSize: 10,
+    fontSize: 13,
     color: 'var(--success)',
     fontFamily: 'var(--font-mono)',
   },
   logoutBtn: {
     padding: '6px',
     borderRadius: 'var(--radius)',
-    color: 'var(--text-3)',
+    color: '#d4d4d4',
     cursor: 'pointer',
     border: 'none',
     display: 'flex',

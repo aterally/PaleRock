@@ -208,13 +208,13 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
 
   // Client-side expiry: remove messages whose disappearAt has passed
   useEffect(() => {
-    if (!messages.some(m => m.disappearAt)) return;
+    if (!disappearAfterMs && !messages.some(m => m.disappearAt)) return;
     const tick = setInterval(() => {
       const now = new Date();
       setMessages(prev => prev.filter(m => !m.disappearAt || new Date(m.disappearAt) > now));
-    }, 5000);
+    }, 1000);
     return () => clearInterval(tick);
-  }, [messages]);
+  }, [disappearAfterMs, messages]);
 
   async function setDisappearTimer(ms: number | null) {
     setSettingDisappear(true);
@@ -301,7 +301,7 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
               border: '1px solid ' + (disappearAfterMs ? '#7eb8f7' : 'var(--border)'),
               borderRadius: 'var(--radius-md)',
               color: disappearAfterMs ? '#7eb8f7' : 'var(--text-3)',
-              cursor: 'pointer', fontSize: 11,
+              cursor: 'pointer', fontSize: 13,
               fontFamily: 'var(--font-display)',
               letterSpacing: '0.04em',
               transition: 'all 0.15s',
@@ -351,7 +351,7 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
 
       {/* Disappearing messages banner */}
       {disappearAfterMs && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 32px', background: 'rgba(126,184,247,0.07)', borderBottom: '1px solid rgba(126,184,247,0.2)', fontSize: 12, color: '#7eb8f7', fontFamily: 'var(--font-display)', letterSpacing: '0.02em' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 32px', background: 'rgba(126,184,247,0.10)', borderBottom: '1px solid rgba(126,184,247,0.3)', fontSize: 14, color: '#7eb8f7', fontFamily: 'var(--font-display)', letterSpacing: '0.02em' }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           Messages disappear after {disappearLabel(disappearAfterMs)}
         </div>
@@ -395,7 +395,7 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
 
       {/* Reply banner */}
       {replyTo && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 16px', background: 'var(--bg-2)', borderTop: '1px solid var(--border)', fontSize: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 20px', background: 'var(--bg-2)', borderTop: '1px solid var(--border)', fontSize: 14 }}>
           <span style={{ color: 'var(--text-3)' }}>Replying to <b style={{ color: 'var(--text-2)' }}>{replyTo.senderUsername}</b>: <span style={{ color: 'var(--text-3)', fontStyle: 'italic' }}>{replyTo.content.slice(0, 60)}{replyTo.content.length > 60 ? '...' : ''}</span></span>
           <button onClick={() => setReplyTo(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '0 4px' }}>x</button>
         </div>
@@ -602,7 +602,7 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
         {!isMe && (
           <span style={{ flexShrink: 0, alignSelf: 'flex-end', cursor: 'pointer' }}
             onClick={(e) => onProfileClick?.(e, msg.senderId, msg.senderUsername, msg.senderAvatar)}>
-            <Avatar username={msg.senderUsername} avatar={msg.senderAvatar} size={28} />
+            <Avatar username={msg.senderUsername} avatar={msg.senderAvatar} size={34} />
           </span>
         )}
 
@@ -693,8 +693,8 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
                 )}
                 {/* Plain text — no bubble */}
                 <div style={{
-                  fontSize: 19,
-                  lineHeight: 1.55,
+                  fontSize: 22,
+                  lineHeight: 1.6,
                   wordBreak: 'break-word',
                   whiteSpace: 'pre-wrap',
                   letterSpacing: '0.01em',
@@ -709,7 +709,7 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
                 {/* Disappear countdown */}
                 {m.disappearAt && (
                   <div style={{
-                    fontSize: 10, color: '#7eb8f7', opacity: 0.7,
+                    fontSize: 12, color: '#7eb8f7', opacity: 0.9,
                     fontFamily: "'Inter', system-ui, sans-serif",
                     marginTop: 2,
                     textAlign: isMe ? 'right' : 'left',
@@ -749,7 +749,7 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
         {/* Avatar on the right for own messages */}
         {isMe && (
           <span style={{ flexShrink: 0, alignSelf: 'flex-end' }}>
-            <Avatar username={currentUsername} avatar={currentUserAvatar ?? null} size={28} />
+            <Avatar username={currentUsername} avatar={currentUserAvatar ?? null} size={34} />
           </span>
         )}
       </div>
@@ -831,7 +831,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   header: {
     padding: '0 32px',
-    height: 60,
+    height: 68,
     borderBottom: '1px solid var(--border)',
     display: 'flex',
     alignItems: 'center',
@@ -841,7 +841,7 @@ const s: Record<string, React.CSSProperties> = {
   headerName: {
     fontFamily: "'Cormorant Garamond', Georgia, serif",
     fontWeight: 500,
-    fontSize: 17,
+    fontSize: 20,
     color: '#ffffff',
     letterSpacing: '0.03em',
   },
@@ -860,7 +860,7 @@ const s: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'flex-end',
-    padding: '28px 40px',
+    padding: '32px 48px',
     minHeight: '100%',
     boxSizing: 'border-box',
   },
@@ -895,8 +895,8 @@ const s: Record<string, React.CSSProperties> = {
   },
   loadMore: {
     padding: '5px 16px',
-    fontSize: 11,
-    color: '#aaaaaa',
+    fontSize: 13,
+    color: '#d4d4d4',
     background: 'transparent',
     border: '1px solid #444444',
     borderRadius: 20,
@@ -919,8 +919,8 @@ const s: Record<string, React.CSSProperties> = {
     background: '#444444',
   },
   dateLabel: {
-    fontSize: 10,
-    color: '#c0c0c0',
+    fontSize: 12,
+    color: '#d4d4d4',
     fontFamily: "'Cormorant Garamond', Georgia, serif",
     fontWeight: 400,
     fontStyle: 'italic',
@@ -928,20 +928,20 @@ const s: Record<string, React.CSSProperties> = {
     flexShrink: 0,
   },
   metaName: {
-    fontSize: 11,
+    fontSize: 13,
     color: '#ffffff',
     fontFamily: "'Inter', system-ui, sans-serif",
     fontWeight: 500,
     letterSpacing: '0.02em',
   },
   metaTime: {
-    fontSize: 10,
-    color: '#c0c0c0',
+    fontSize: 12,
+    color: '#d4d4d4',
     fontFamily: "'Inter', system-ui, sans-serif",
     fontWeight: 300,
   },
   inputRow: {
-    padding: '12px 32px 18px',
+    padding: '14px 36px 20px',
     borderTop: '1px solid var(--border)',
     display: 'flex',
     alignItems: 'flex-end',
@@ -954,12 +954,12 @@ const s: Record<string, React.CSSProperties> = {
     background: 'var(--bg-2)',
     border: '1px solid var(--border)',
     borderRadius: 12,
-    padding: '10px 16px',
-    color: '#e8e8e8',
+    padding: '12px 18px',
+    color: '#ffffff',
     resize: 'none',
     outline: 'none',
-    fontSize: 14,
-    lineHeight: 1.55,
+    fontSize: 17,
+    lineHeight: 1.6,
     fontFamily: "'Inter', system-ui, sans-serif",
     fontWeight: 300,
     transition: 'border-color 0.15s',

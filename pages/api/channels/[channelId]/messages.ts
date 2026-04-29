@@ -132,6 +132,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         createdAt: now,
         editedAt: null,
         replyTo: replyTo ? { id: replyTo.id, senderUsername: replyTo.senderUsername, content: replyTo.content.slice(0, 200) } : null,
+        disappearAt: disappearAt ? disappearAt.toISOString() : null,
       }
     });
   }

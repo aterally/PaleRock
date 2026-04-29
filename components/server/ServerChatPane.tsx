@@ -208,7 +208,7 @@ export default function ServerChatPane({
                     onClick={(e) => openProfile(e, group.authorId, group.author)}
                     title="View profile"
                   >
-                    <Avatar username={group.author} avatar={group.authorAvatar} size={36} />
+                    <Avatar username={group.author} avatar={group.authorAvatar} size={42} />
                   </div>
                   <div style={styles.groupContent}>
                     <div style={styles.groupHeader}>
@@ -255,7 +255,7 @@ export default function ServerChatPane({
                         onTouchMove={handleTouchEnd}
                       >
                         {msg.replyTo && (
-                          <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 4, fontStyle: 'italic' }}>
+                          <div style={{ fontSize: 14, color: '#d4d4d4', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4, fontStyle: 'italic' }}>
                             <span style={{ opacity: 0.6 }}>↩</span>
                             <span style={{ fontWeight: 600, color: 'var(--text-2)' }}>{msg.replyTo.authorUsername}</span>
                             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200, opacity: 0.8 }}>{msg.replyTo.content}</span>
@@ -434,8 +434,8 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'var(--bg)',
   },
   header: {
-    padding: '0 20px',
-    height: 64,
+    padding: '0 24px',
+    height: 72,
     borderBottom: '1px solid var(--border)',
     display: 'flex',
     alignItems: 'center',
@@ -450,7 +450,7 @@ const styles: Record<string, React.CSSProperties> = {
     overflow: 'hidden',
   },
   hash: {
-    fontSize: 22,
+    fontSize: 26,
     color: '#ffffff',
     fontWeight: 300,
     flexShrink: 0,
@@ -458,7 +458,7 @@ const styles: Record<string, React.CSSProperties> = {
   channelName: {
     fontFamily: 'var(--font-display)',
     fontWeight: 700,
-    fontSize: 16,
+    fontSize: 19,
     letterSpacing: '0.04em',
     color: '#ffffff',
     flexShrink: 0,
@@ -470,8 +470,8 @@ const styles: Record<string, React.CSSProperties> = {
     flexShrink: 0,
   },
   topic: {
-    fontSize: 13,
-    color: 'var(--text-2)',
+    fontSize: 15,
+    color: '#f0f0f0',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
@@ -491,7 +491,7 @@ const styles: Record<string, React.CSSProperties> = {
   messageArea: {
     flex: 1,
     overflowY: 'auto',
-    padding: '24px 28px 0',
+    padding: '28px 36px 0',
     display: 'flex',
     flexDirection: 'column',
   },
@@ -540,8 +540,8 @@ const styles: Record<string, React.CSSProperties> = {
   },
   messageGroup: {
     display: 'flex',
-    gap: 14,
-    marginBottom: 20,
+    gap: 16,
+    marginBottom: 24,
     alignItems: 'flex-start',
   },
   avatar: {
@@ -572,18 +572,18 @@ const styles: Record<string, React.CSSProperties> = {
   authorName: {
     fontFamily: 'var(--font-display)',
     fontWeight: 700,
-    fontSize: 15,
+    fontSize: 17,
     letterSpacing: '0.02em',
   },
   timestamp: {
-    fontSize: 11,
-    color: '#c0c0c0',
+    fontSize: 13,
+    color: '#d4d4d4',
     letterSpacing: '0.04em',
     fontFamily: 'var(--font-display)',
   },
   messageText: {
-    fontSize: 19,
-    color: 'var(--text-2)',
+    fontSize: 22,
+    color: '#f5f5f5',
     lineHeight: 1.65,
     wordBreak: 'break-word',
     whiteSpace: 'pre-wrap',
@@ -610,8 +610,8 @@ const styles: Record<string, React.CSSProperties> = {
     border: 'none',
     outline: 'none',
     color: '#ffffff',
-    fontSize: 16,
-    padding: '12px 0',
+    fontSize: 18,
+    padding: '14px 0',
     fontFamily: 'var(--font-display)',
   },
   sendBtn: {
@@ -632,8 +632,9 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid var(--border)',
     borderRadius: 'var(--radius-md)',
     fontSize: 14,
-    color: '#ffffff',
+    color: '#f5f5f5',
     textAlign: 'center',
+    fontSize: 16,
     fontFamily: 'var(--font-display)',
   },
 };
