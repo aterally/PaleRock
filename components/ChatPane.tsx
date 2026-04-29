@@ -667,12 +667,6 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
 
             return (
               <div key={m.id} className="msg-wrap" style={{ position: 'relative' }}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  const mx = Math.min(e.clientX, window.innerWidth - 180);
-                  const my = Math.min(e.clientY, window.innerHeight - 120);
-                  onLongPress?.(m, mx, my);
-                }}
                 onTouchStart={handleTouchStart}
                 onTouchEnd={handleTouchEnd}
                 onTouchMove={handleTouchEnd}

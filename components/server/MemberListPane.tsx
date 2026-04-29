@@ -103,7 +103,7 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
     if (m.userId === currentUserId) return;
     setProfile(null);
     const x = Math.min(e.clientX, window.innerWidth - 220);
-    const y = Math.min(e.clientY, window.innerHeight - 260);
+    const y = Math.min(e.clientY, window.innerHeight - 300);
     setCtxMenu({ x, y, userId: m.userId, username: m.username });
   }
 
@@ -111,8 +111,8 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
     if (m.userId === currentUserId) return;
     setProfile(null);
     // On touch: anchor to bottom-center of screen for easy thumb reach
-    const x = Math.max(8, (window.innerWidth - 200) / 2);
-    const y = window.innerHeight - 320;
+    const x = Math.max(8, (window.innerWidth - 220) / 2);
+    const y = Math.max(40, window.innerHeight - 360);
     setCtxMenu({ x, y, userId: m.userId, username: m.username });
   }
 
@@ -121,8 +121,8 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
     setCtxMenu(null);
     const rect = (e.currentTarget as HTMLElement).closest('[data-member-row]')?.getBoundingClientRect();
     if (!rect) return;
-    const x = Math.max(8, rect.left - 268);
-    const y = Math.max(8, Math.min(rect.top, window.innerHeight - 300));
+    const x = Math.max(8, rect.left - 328);
+    const y = Math.max(8, Math.min(rect.top, window.innerHeight - 380));
     setProfile({ userId: m.userId, x, y });
   }
 
@@ -163,7 +163,7 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
   const profileRoles = profileMember ? server.roles.filter(r => !r.isDefault && profileMember.roles.includes(r.id)) : [];
 
   return (
-    <aside data-member-list="1" className="palerock-member-list pr-member-pane" onClick={() => { setCtxMenu(null); setProfile(null); }}>
+    <aside data-member-list="1" className="palerock-member-list pr-member-pane" onClick={(e) => { if (!(e.target as HTMLElement).closest('[data-ctx]') && !(e.target as HTMLElement).closest('[data-profile]')) { setCtxMenu(null); setProfile(null); } }}>
       <div className="pr-member-header">
         <span className="pr-member-title">MEMBERS — {server.members.length}</span>
         <span style={{ fontSize: 9, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', marginLeft: 'auto', display: 'none' }} className="touch-hint">hold to manage</span>
@@ -260,7 +260,7 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
             <div style={{ ...st.profileBanner, background: `hsl(${hue},20%,14%)` }} />
             <div style={st.profileBody}>
               <div style={st.profileAvatarWrap}>
-                <Avatar username={profileMember.username} avatar={profileMember.avatar} size={48} />
+                <Avatar username={profileMember.username} avatar={profileMember.avatar} size={64} />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 <div style={st.profileName}>{profileMember.nickname || profileMember.username}</div>
@@ -494,12 +494,12 @@ const st: Record<string, React.CSSProperties> = {
   ctxHeader: { padding: '10px 14px', fontSize: 11, letterSpacing: '0.1em', color: 'var(--text-3)', fontFamily: 'var(--font-display)', fontWeight: 700, borderBottom: '1px solid var(--border)', marginBottom: 4 },
   ctxItem: { display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '11px 14px', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 14, borderRadius: 4, color: 'var(--text-2)', fontFamily: 'var(--font-display)', minHeight: 42 },
   ctxDivider: { height: 1, background: 'var(--border)', margin: '3px 0' },
-  profileCard: { position: 'fixed', width: 264, background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden', zIndex: 1000, boxShadow: '0 12px 40px rgba(0,0,0,0.6)' },
-  profileBanner: { height: 56, width: '100%' },
-  profileBody: { padding: '0 18px 18px' },
-  profileAvatarWrap: { marginTop: -24, marginBottom: 8 },
-  profileAvatar: { width: 48, height: 48, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, border: '3px solid var(--bg-2)', userSelect: 'none' },
-  profileName: { fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, color: 'var(--text)', letterSpacing: '0.02em' },
+  profileCard: { position: 'fixed', width: 320, background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', zIndex: 1000, boxShadow: '0 16px 48px rgba(0,0,0,0.7)' },
+  profileBanner: { height: 80, width: '100%' },
+  profileBody: { padding: '0 20px 20px' },
+  profileAvatarWrap: { marginTop: -32, marginBottom: 10 },
+  profileAvatar: { width: 64, height: 64, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 20, border: '3px solid var(--bg-2)', userSelect: 'none' },
+  profileName: { fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 18, color: 'var(--text)', letterSpacing: '0.02em' },
   profileUsername: { fontSize: 12, color: 'var(--text-3)', marginTop: 1, fontFamily: 'var(--font-display)' },
   profileBio: { fontSize: 13, color: 'var(--text-2)', marginTop: 8, lineHeight: 1.5, fontFamily: 'var(--font-display)' },
   profileSectionLabel: { fontSize: 10, letterSpacing: '0.12em', color: 'var(--text-3)', fontFamily: 'var(--font-display)', fontWeight: 700 },

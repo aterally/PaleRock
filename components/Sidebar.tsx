@@ -377,7 +377,6 @@ const styles: Record<string, React.CSSProperties> = {
   },
   nav: {
     padding: '12px 0',
-    borderBottom: '1px solid var(--border)',
   },
   navItem: {
     width: '100%',

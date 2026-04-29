@@ -228,9 +228,9 @@ export default function ServerSidebar({
                   e.stopPropagation();
                   setDragOver(null);
                   if (dragging?.type === 'channel') {
-                    if (dragging.id !== ch.id) reorderChannels(dragging.id, ch.id);
                     const draggedCh = server.channels.find(c => c.id === dragging.id);
                     if (draggedCh && draggedCh.categoryId !== null) moveChannelToCategory(dragging.id, null);
+                    if (dragging.id !== ch.id) reorderChannels(dragging.id, ch.id);
                   }
                   setDragging(null);
                 }}
@@ -267,6 +267,10 @@ export default function ServerSidebar({
             onCategoryDrop={() => {
               setDragOver(null);
               if (dragging?.type === 'category' && dragging.id !== category.id) reorderCategories(dragging.id, category.id);
+              if (dragging?.type === 'channel') {
+                const draggedCh = server.channels.find(c => c.id === dragging.id);
+                if (draggedCh && draggedCh.categoryId !== category.id) moveChannelToCategory(dragging.id, category.id);
+              }
               setDragging(null);
             }}
             onCategoryDragEnd={() => { setDragging(null); setDragOver(null); }}
@@ -274,9 +278,12 @@ export default function ServerSidebar({
             onChannelDrop={(chId, catId) => {
               setDragOver(null);
               if (dragging?.type === 'channel') {
-                if (dragging.id !== chId) reorderChannels(dragging.id, chId);
                 const draggedCh = server.channels.find(c => c.id === dragging.id);
-                if (draggedCh && draggedCh.categoryId !== catId) moveChannelToCategory(dragging.id, catId);
+                // If cross-category, move to new category first, then reorder
+                if (draggedCh && draggedCh.categoryId !== catId) {
+                  moveChannelToCategory(dragging.id, catId);
+                }
+                if (dragging.id !== chId) reorderChannels(dragging.id, chId);
               }
               setDragging(null);
             }}
@@ -536,6 +543,9 @@ function CategorySection({ category, channels, activeChannelId, canManage, dragg
         draggable={canManage}
         onDragStart={canManage ? onCategoryDragStart : undefined}
         onDragEnd={canManage ? onCategoryDragEnd : undefined}
+        onDragOver={canManage ? (e) => { e.preventDefault(); e.stopPropagation(); onCategoryDragOver(e); } : undefined}
+        onDragLeave={canManage ? onCategoryDragLeave : undefined}
+        onDrop={canManage ? (e) => { e.stopPropagation(); onCategoryDrop(); } : undefined}
       >
         {canManage && <span style={{ fontSize: 9, color: 'var(--text-3)', opacity: 0.5, marginRight: 2 }}>⠿</span>}
         {/* Arrow always uses the same chevron character; rotation is CSS-only */}
