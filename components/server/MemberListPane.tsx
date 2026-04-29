@@ -164,13 +164,13 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
   const profileRoles = profileMember ? server.roles.filter(r => !r.isDefault && profileMember.roles.includes(r.id)) : [];
 
   return (
-    <aside data-member-list="1" className="palerock-member-list" style={st.pane} onClick={() => { setCtxMenu(null); setProfile(null); }}>
-      <div style={st.header}>
-        <span style={st.title}>MEMBERS — {server.members.length}</span>
+    <aside data-member-list="1" className="palerock-member-list pr-member-pane" onClick={() => { setCtxMenu(null); setProfile(null); }}>
+      <div className="pr-member-header">
+        <span className="pr-member-title">MEMBERS — {server.members.length}</span>
         <span style={{ fontSize: 9, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', marginLeft: 'auto', display: 'none' }} className="touch-hint">hold to manage</span>
       </div>
 
-      <div style={st.list}>
+      <div className="pr-member-list">
         {allMembers.map(member => (
           <MemberRow
             key={member.userId}
@@ -189,10 +189,10 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
 
       {/* Right-click context menu */}
       {ctxMenu && (
-        <div data-ctx="1" style={{ ...st.ctxMenu, top: ctxMenu.y, left: ctxMenu.x }}>
-          <div style={st.ctxHeader}>{ctxMenu.username}</div>
+        <div data-ctx="1" className="pr-member-ctx" style={{ top: ctxMenu.y, left: ctxMenu.x }}>
+          <div className="pr-member-ctx-header">{ctxMenu.username}</div>
           {canManageRoles && (
-            <button style={st.ctxItem} onClick={() => { setCtxMenu(null); setShowRoleModal(ctxMenu.userId); }}>
+            <button className="pr-member-ctx-item" onClick={() => { setCtxMenu(null); setShowRoleModal(ctxMenu.userId); }}>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
               Manage Roles
             </button>
@@ -201,38 +201,38 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
             const ctxMember = ctxMenu ? server.members.find(m => m.userId === ctxMenu.userId) : null;
             const ctxIsMuted = ctxMember?.mutedUntil && new Date(ctxMember.mutedUntil).getTime() > Date.now();
             return ctxIsMuted ? (
-              <button style={{ ...st.ctxItem, color: '#23a55a' }} onClick={() => unmute(ctxMenu!.userId)}>
+              <button className="pr-member-ctx-item pr-member-ctx-item--unmute" onClick={() => unmute(ctxMenu!.userId)}>
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
                 Unmute
               </button>
             ) : (
-              <button style={st.ctxItem} onClick={() => { setCtxMenu(null); setMuteModal({ userId: ctxMenu!.userId, username: ctxMenu!.username }); }}>
+              <button className="pr-member-ctx-item" onClick={() => { setCtxMenu(null); setMuteModal({ userId: ctxMenu!.userId, username: ctxMenu!.username }); }}>
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
                 Mute
               </button>
             );
           })()}
-          {(canKick || canBan) && <div style={st.ctxDivider} />}
+          {(canKick || canBan) && <div className="pr-ctx-divider" />}
           {canKick && (
-            <button style={{ ...st.ctxItem, color: '#ffa000' }} onClick={() => kick(ctxMenu.userId, ctxMenu.username)}>
+            <button className="pr-member-ctx-item pr-member-ctx-item--kick" onClick={() => kick(ctxMenu.userId, ctxMenu.username)}>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h4a3 3 0 0 1 3 3v1"/></svg>
               Kick Member
             </button>
           )}
           {canBan && (
-            <button style={{ ...st.ctxItem, color: '#ed4245' }} onClick={() => ban(ctxMenu.userId, ctxMenu.username)}>
+            <button className="pr-member-ctx-item pr-member-ctx-item--ban" onClick={() => ban(ctxMenu.userId, ctxMenu.username)}>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
               Ban Member
             </button>
           )}
-          <div style={st.ctxDivider} />
+          <div className="pr-ctx-divider" />
           {blockedUsers.has(ctxMenu.userId) ? (
-            <button style={{ ...st.ctxItem, color: '#23a55a' }} onClick={() => unblockUser(ctxMenu.userId)}>
+            <button className="pr-member-ctx-item pr-member-ctx-item--unblock" onClick={() => unblockUser(ctxMenu.userId)}>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><polyline points="20 6 9 17 4 12"/></svg>
               Unblock User
             </button>
           ) : (
-            <button style={{ ...st.ctxItem, color: '#ed4245' }} onClick={() => blockUser(ctxMenu.userId)}>
+            <button className="pr-member-ctx-item pr-member-ctx-item--block" onClick={() => blockUser(ctxMenu.userId)}>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
               Block User
             </button>
@@ -254,7 +254,8 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
         return (
           <div
             data-profile="1"
-            style={{ ...st.profileCard, top: profile.y, left: profile.x }}
+            className="pr-profile-card"
+            style={{ top: profile.y, left: profile.x }}
             onClick={e => e.stopPropagation()}
           >
             <div style={{ ...st.profileBanner, background: `hsl(${hue},20%,14%)` }} />
@@ -432,7 +433,7 @@ function MemberRow({ member, currentUserId, ownerId, roles, st, onCtx, onCtxTouc
   return (
     <div
       data-member-row="1"
-      style={st.memberItem}
+      className="pr-member-item"
       onContextMenu={(e) => onCtx(e, member)}
       {...longPress}
     >
@@ -449,17 +450,18 @@ function MemberRow({ member, currentUserId, ownerId, roles, st, onCtx, onCtxTouc
           border: '2px solid var(--bg-1)',
         }} title={isOnline ? 'Online' : member.lastOnline ? `Last seen ${lastSeenLabel(member.lastOnline)}` : 'Offline'} />
       </div>
-      <div style={st.memberInfo}>
+      <div className="pr-member-info">
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
           <span
-            style={{ ...st.memberName, color: nameColor, cursor: 'pointer' }}
+            className="pr-member-name"
+            style={{ color: nameColor, cursor: 'pointer' }}
             onClick={(e) => onProfile(e, member)}
             title="View profile"
           >
             {member.nickname || member.username}
           </span>
-          {isMemberOwner && <span style={st.ownerBadge}>owner</span>}
-          {isMe && <span style={{ ...st.ownerBadge, color: '#23a55a' }}>you</span>}
+          {isMemberOwner && <span className="pr-owner-badge">owner</span>}
+          {isMe && <span className="pr-owner-badge" style={{ color: '#23a55a' }}>you</span>}
           {isMuted && (
             <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 3, background: 'rgba(237,66,69,0.12)', color: '#ed4245', border: '1px solid rgba(237,66,69,0.3)', fontFamily: 'var(--font-mono)', letterSpacing: '0.04em' }}>
               {mutedLabel(member.mutedUntil!)}
@@ -468,7 +470,7 @@ function MemberRow({ member, currentUserId, ownerId, roles, st, onCtx, onCtxTouc
         </div>
         <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' as const }}>
           {roles.filter(r => !r.isDefault && member.roles.includes(r.id)).slice(0, 2).map((role: ServerRole) => (
-            <span key={role.id} style={{ ...st.roleBadge, borderColor: role.color + '55', color: role.color }}>
+            <span key={role.id} className="pr-role-badge" style={{ borderColor: role.color + '55', color: role.color }}>
               {role.name}
             </span>
           ))}
@@ -479,8 +481,8 @@ function MemberRow({ member, currentUserId, ownerId, roles, st, onCtx, onCtxTouc
 }
 
 const st: Record<string, React.CSSProperties> = {
-  pane: { width: 270, minWidth: 270, height: '100dvh', background: 'var(--bg-1)', borderLeft: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' },
-  header: { padding: '0 18px', height: 60, borderBottom: '1px solid var(--border)', flexShrink: 0, display: 'flex', alignItems: 'center' },
+  pane: { width: 300, minWidth: 300, height: '100dvh', background: 'var(--bg-1)', borderLeft: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' },
+  header: { padding: '0 18px', height: 72, borderBottom: '1px solid var(--border)', flexShrink: 0, display: 'flex', alignItems: 'center' },
   title: { fontSize: 11, letterSpacing: '0.14em', color: 'var(--text-3)', fontFamily: 'var(--font-display)', fontWeight: 700 },
   list: { flex: 1, overflowY: 'auto', padding: '10px 10px', display: 'flex', flexDirection: 'column', gap: 2 },
   memberItem: { display: 'flex', alignItems: 'center', gap: 10, padding: '9px 10px', borderRadius: 'var(--radius-md)', transition: 'background var(--transition)', cursor: 'default' },

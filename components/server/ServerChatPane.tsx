@@ -163,9 +163,9 @@ export default function ServerChatPane({
   const groups = groupMessages(messages);
 
   return (
-    <div style={styles.pane} onClick={() => { setProfilePopup(null); setCtxMenu(null); }}>
+    <div className="pr-chat-pane" onClick={() => { setProfilePopup(null); setCtxMenu(null); }}>
       {/* Channel header */}
-      <div style={styles.header}>
+      <div className="pr-chat-header">
         <div style={styles.channelInfo}>
           <span style={styles.hash}>#</span>
           <span style={styles.channelName}>{channel.name}</span>
@@ -186,7 +186,7 @@ export default function ServerChatPane({
       </div>
 
       {/* Messages */}
-      <div style={styles.messageArea}>
+      <div className="pr-chat-message-area">
         {loading ? (
           <div style={styles.loadingState}>
             <span className="spinner" style={{ width: 18, height: 18 }} />
@@ -203,7 +203,7 @@ export default function ServerChatPane({
             {groups.map((group, i) => {
               const color = getMemberColor(group.authorId);
               return (
-                <div key={i} style={styles.messageGroup}>
+                <div key={i} className="pr-message-group">
                   <div
                     style={{ cursor: 'pointer', flexShrink: 0 }}
                     onClick={(e) => openProfile(e, group.authorId, group.author)}
@@ -214,7 +214,8 @@ export default function ServerChatPane({
                   <div style={styles.groupContent}>
                     <div style={styles.groupHeader}>
                       <span
-                        style={{ ...styles.authorName, color, cursor: 'pointer' }}
+                        className="pr-message-author"
+                        style={{ color, cursor: 'pointer' }}
                         onClick={(e) => openProfile(e, group.authorId, group.author)}
                         title="View profile"
                       >{group.author}</span>
@@ -262,7 +263,7 @@ export default function ServerChatPane({
                             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200, opacity: 0.8 }}>{msg.replyTo.content}</span>
                           </div>
                         )}
-                        <p style={styles.messageText}>{renderContent(msg.content)}</p>
+                        <p className="pr-message-text">{renderContent(msg.content)}</p>
                         <div className="msg-actions" style={{ position: 'absolute', top: 0, right: 0, display: 'flex', gap: 4, opacity: 0, transition: 'opacity 0.1s' }}>
                           <button title="Reply" onClick={() => { setReplyTo({ id: msg.id, authorUsername: msg.authorUsername, content: msg.content }); inputRef.current?.focus(); }}
                             style={{ padding: '4px 6px', border: '1px solid var(--border)', borderRadius: 4, background: 'var(--bg-2)', color: 'var(--text-2)', cursor: 'pointer', display: 'flex', alignItems: 'center', lineHeight: 1 }}>
@@ -373,17 +374,17 @@ export default function ServerChatPane({
         </div>
       )}
       {/* Input */}
-      <div style={styles.inputArea}>
+      <div className="pr-input-area">
         {isMuted ? (
           <div style={{ ...styles.noPermission, color: 'var(--text-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
             You are muted — unmuted in <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text)', marginLeft: 2 }}>{formatMuteTime(muteSecondsLeft)}</span>
           </div>
         ) : canSend ? (
-          <div style={styles.inputRow}>
+          <div className="pr-input-row">
             <input
               ref={inputRef}
-              style={styles.input}
+              className="pr-chat-input"
               placeholder={`Message #${channel.name}`}
               value={input}
               onChange={e => setInput(e.target.value)}
@@ -439,22 +440,8 @@ function renderContent(text: string): React.ReactNode {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  pane: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden',
-    background: 'var(--bg)',
-  },
-  header: {
-    padding: '0 24px',
-    height: 72,
-    borderBottom: '1px solid var(--border)',
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    flexShrink: 0,
-  },
+  pane: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', height: '100dvh', background: 'var(--bg)', overflow: 'hidden' },
+  header: { padding: '0 20px', height: 72, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 },
   channelInfo: {
     display: 'flex',
     alignItems: 'center',
@@ -498,7 +485,7 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     border: 'none',
     background: 'transparent',
-    transition: 'color var(--transition)',
+    transition: 'color 0.15s ease',
     flexShrink: 0,
   },
   messageArea: {
@@ -624,7 +611,7 @@ const styles: Record<string, React.CSSProperties> = {
     border: 'none',
     outline: 'none',
     color: '#ffffff',
-    fontSize: 18,
+    fontSize: 15,
     padding: '14px 0',
     fontFamily: 'var(--font-display)',
   },
@@ -637,7 +624,7 @@ const styles: Record<string, React.CSSProperties> = {
     border: 'none',
     background: 'transparent',
     flexShrink: 0,
-    transition: 'color var(--transition)',
+    transition: 'color 0.15s ease, transform 0.12s ease',
     borderRadius: 'var(--radius)',
   },
   noPermission: {
@@ -647,7 +634,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 'var(--radius-md)',
     color: '#f5f5f5',
     textAlign: 'center',
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: 'var(--font-display)',
   },
 };

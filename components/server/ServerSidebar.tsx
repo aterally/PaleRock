@@ -30,11 +30,11 @@ export default function ServerSidebar({
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteCode, setInviteCode] = useState('');
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; type: 'channel' | 'category'; id: string } | null>(null);
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
 
   // Optimistic drag state
   const [dragging, setDragging] = useState<{ type: 'channel' | 'category'; id: string } | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
-  // Optimistic ordered lists (null = use server data)
   const [optimisticChannels, setOptimisticChannels] = useState<ServerChannel[] | null>(null);
   const [optimisticCategories, setOptimisticCategories] = useState<ServerCategory[] | null>(null);
 
@@ -129,7 +129,6 @@ export default function ServerSidebar({
     const moved = sorted.splice(dragIdx, 1)[0];
     sorted.splice(targetIdx, 0, moved);
     const reindexed = sorted.map((ch, i) => ({ ...ch, position: i }));
-    // Optimistic update
     setOptimisticChannels(reindexed);
     try {
       const r = await fetch(`/api/servers/${server.id}/channels`, {
@@ -139,7 +138,6 @@ export default function ServerSidebar({
       if (!r.ok) throw new Error('Failed');
       onServerUpdate();
     } catch {
-      // Revert on failure
       setOptimisticChannels(null);
     }
   }
@@ -152,7 +150,6 @@ export default function ServerSidebar({
     const moved = sorted.splice(dragIdx, 1)[0];
     sorted.splice(targetIdx, 0, moved);
     const reindexed = sorted.map((cat, i) => ({ ...cat, position: i }));
-    // Optimistic update
     setOptimisticCategories(reindexed);
     try {
       const r = await fetch(`/api/servers/${server.id}/categories`, {
@@ -162,7 +159,6 @@ export default function ServerSidebar({
       if (!r.ok) throw new Error('Failed');
       onServerUpdate();
     } catch {
-      // Revert on failure
       setOptimisticCategories(null);
     }
   }
@@ -178,25 +174,29 @@ export default function ServerSidebar({
       channels: channels.filter(c => c.categoryId === cat.id).sort((a, b) => a.position - b.position),
     }));
 
+  const selectedCategoryLabel = newChannelCategory
+    ? server.categories.find(c => c.id === newChannelCategory)?.name ?? 'No category'
+    : 'No category';
+
   return (
-    <aside style={styles.sidebar} onClick={() => setContextMenu(null)}>
+    <aside className="pr-server-sidebar" onClick={() => setContextMenu(null)}>
       {/* Server header */}
-      <div style={styles.header}>
-        <button onClick={() => router.push('/app')} style={styles.backBtn} title="Back to DMs">
+      <div className="pr-sidebar-header">
+        <button onClick={() => router.push('/app')} className="pr-back-btn" title="Back to DMs">
           <IconBack />
         </button>
-        <div style={styles.serverName}>{server.name}</div>
+        <div className="pr-server-name">{server.name}</div>
         {(isOwner || hasPermission('manageServer')) && (
-          <button onClick={onOpenSettings} style={styles.settingsBtn} title="Server Settings">
+          <button onClick={onOpenSettings} className="pr-settings-btn" title="Server Settings">
             <IconSettings />
           </button>
         )}
       </div>
 
       {/* Quick actions */}
-      <div style={styles.quickActions}>
+      <div className="pr-quick-actions">
         {canInvite && (
-          <button style={styles.actionBtn} onClick={createInvite}>
+          <button className="pr-action-btn" onClick={createInvite}>
             <IconInvite />
             <span>Invite People</span>
           </button>
@@ -204,10 +204,10 @@ export default function ServerSidebar({
       </div>
 
       {/* Channel list */}
-      <div style={styles.channelList}>
+      <div className="pr-channel-list">
         {/* Uncategorized channels */}
         {uncategorized.length > 0 && (
-          <div style={styles.section}>
+          <div className="pr-section">
             {uncategorized.map(ch => (
               <ChannelItem
                 key={ch.id}
@@ -230,9 +230,7 @@ export default function ServerSidebar({
                   if (dragging?.type === 'channel') {
                     if (dragging.id !== ch.id) reorderChannels(dragging.id, ch.id);
                     const draggedCh = server.channels.find(c => c.id === dragging.id);
-                    if (draggedCh && draggedCh.categoryId !== null) {
-                      moveChannelToCategory(dragging.id, null);
-                    }
+                    if (draggedCh && draggedCh.categoryId !== null) moveChannelToCategory(dragging.id, null);
                   }
                   setDragging(null);
                 }}
@@ -277,11 +275,8 @@ export default function ServerSidebar({
               setDragOver(null);
               if (dragging?.type === 'channel') {
                 if (dragging.id !== chId) reorderChannels(dragging.id, chId);
-                // If channel is from different category, move it
                 const draggedCh = server.channels.find(c => c.id === dragging.id);
-                if (draggedCh && draggedCh.categoryId !== catId) {
-                  moveChannelToCategory(dragging.id, catId);
-                }
+                if (draggedCh && draggedCh.categoryId !== catId) moveChannelToCategory(dragging.id, catId);
               }
               setDragging(null);
             }}
@@ -290,11 +285,11 @@ export default function ServerSidebar({
 
         {/* Add channel / category buttons */}
         {canManageChannels && (
-          <div style={styles.addRow}>
-            <button style={styles.addBtn} onClick={openCreateChannel}>
+          <div className="pr-add-row">
+            <button className="pr-add-btn" onClick={openCreateChannel}>
               <IconPlus /> <span>Add Channel</span>
             </button>
-            <button style={styles.addBtn} onClick={() => setShowCreateCategory(true)}>
+            <button className="pr-add-btn" onClick={() => setShowCreateCategory(true)}>
               <IconFolder /> <span>Add Category</span>
             </button>
           </div>
@@ -303,12 +298,12 @@ export default function ServerSidebar({
 
       {/* Context menu */}
       {contextMenu && (
-        <div style={{ ...styles.contextMenu, top: contextMenu.y, left: contextMenu.x }}>
+        <div className="pr-context-menu" style={{ top: contextMenu.y, left: contextMenu.x }}>
           {contextMenu.type === 'channel' && (() => {
             const ch = server.channels.find(c => c.id === contextMenu.id);
             return (
               <>
-                <button style={styles.contextItem} onClick={async () => {
+                <button className="pr-context-item" onClick={async () => {
                   await fetch(`/api/servers/${server.id}/channel/${contextMenu.id}`, {
                     method: 'PATCH', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ isPrivate: !ch?.isPrivate, allowedRoles: ch?.allowedRoles || [] }),
@@ -317,14 +312,14 @@ export default function ServerSidebar({
                 }}>
                   {ch?.isPrivate ? 'Make Public' : 'Make Private'}
                 </button>
-                <button style={{ ...styles.contextItem, color: 'var(--danger)' }} onClick={() => deleteChannel(contextMenu.id)}>
+                <button className="pr-context-item pr-context-item--danger" onClick={() => deleteChannel(contextMenu.id)}>
                   Delete Channel
                 </button>
               </>
             );
           })()}
           {contextMenu.type === 'category' && (
-            <button style={{ ...styles.contextItem, color: 'var(--danger)' }} onClick={() => deleteCategory(contextMenu.id)}>
+            <button className="pr-context-item pr-context-item--danger" onClick={() => deleteCategory(contextMenu.id)}>
               Delete Category
             </button>
           )}
@@ -333,42 +328,55 @@ export default function ServerSidebar({
 
       {/* Create channel modal — 2 steps */}
       {showCreateChannel && (
-        <Modal
-          title={createChannelStep === 1 ? 'CREATE CHANNEL' : 'SET PERMISSIONS'}
-          onClose={closeCreateChannel}
-        >
+        <Modal title={createChannelStep === 1 ? 'CREATE CHANNEL' : 'SET PERMISSIONS'} onClose={closeCreateChannel}>
           {createChannelStep === 1 ? (
             <>
-              {/* Step 1: name, category, private toggle */}
-              <label style={styles.label}>CHANNEL NAME</label>
+              <label className="pr-label">CHANNEL NAME</label>
               <input
-                style={styles.input} placeholder="general"
+                className="pr-input" placeholder="general"
                 value={newChannelName}
                 onChange={e => setNewChannelName(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { if (newChannelPrivate) setCreateChannelStep(2); else createChannel(); }}}
                 autoFocus
               />
-              <label style={styles.label}>CATEGORY (optional)</label>
-              <select style={styles.input} value={newChannelCategory} onChange={e => setNewChannelCategory(e.target.value)}>
-                <option value="">No category</option>
-                {server.categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
-              </select>
-              <label style={{ ...styles.label, marginTop: 14 }}>CHANNEL TYPE</label>
+              <label className="pr-label">CATEGORY (optional)</label>
+              {/* Custom dropdown — replaces native <select> */}
+              <div className="pr-custom-select" onClick={e => e.stopPropagation()}>
+                <button
+                  type="button"
+                  className="pr-custom-select__trigger"
+                  onClick={() => setCategoryDropdownOpen(v => !v)}
+                >
+                  <span>{selectedCategoryLabel}</span>
+                  <svg width="10" height="6" viewBox="0 0 10 6" style={{ transition: 'transform 0.18s', transform: categoryDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                    <path d="M1 1l4 4 4-4" stroke="#666" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+                  </svg>
+                </button>
+                {categoryDropdownOpen && (
+                  <div className="pr-custom-select__dropdown">
+                    <button
+                      type="button"
+                      className={`pr-custom-select__option${newChannelCategory === '' ? ' pr-custom-select__option--selected' : ''}`}
+                      onClick={() => { setNewChannelCategory(''); setCategoryDropdownOpen(false); }}
+                    >No category</button>
+                    {server.categories.map(cat => (
+                      <button
+                        type="button"
+                        key={cat.id}
+                        className={`pr-custom-select__option${newChannelCategory === cat.id ? ' pr-custom-select__option--selected' : ''}`}
+                        onClick={() => { setNewChannelCategory(cat.id); setCategoryDropdownOpen(false); }}
+                      >{cat.name}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <label className="pr-label" style={{ marginTop: 14 }}>CHANNEL TYPE</label>
               <div
                 style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 13px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', cursor: 'pointer' }}
                 onClick={() => setNewChannelPrivate(v => !v)}
               >
-                <div style={{
-                  width: 36, height: 20, borderRadius: 10,
-                  background: newChannelPrivate ? 'var(--text)' : 'var(--bg-3)',
-                  position: 'relative', transition: 'background 0.2s', flexShrink: 0,
-                }}>
-                  <div style={{
-                    position: 'absolute', top: 2, left: newChannelPrivate ? 18 : 2,
-                    width: 16, height: 16, borderRadius: '50%',
-                    background: newChannelPrivate ? 'var(--bg)' : 'var(--text-3)',
-                    transition: 'left 0.2s',
-                  }} />
+                <div style={{ width: 36, height: 20, borderRadius: 10, background: newChannelPrivate ? 'var(--text)' : 'var(--bg-3)', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
+                  <div style={{ position: 'absolute', top: 2, left: newChannelPrivate ? 18 : 2, width: 16, height: 16, borderRadius: '50%', background: newChannelPrivate ? 'var(--bg)' : 'var(--text-3)', transition: 'left 0.2s' }} />
                 </div>
                 <div>
                   <span style={{ fontSize: 13, color: 'var(--text-2)', fontFamily: 'var(--font-display)', display: 'block' }}>
@@ -379,106 +387,58 @@ export default function ServerSidebar({
                   </span>
                 </div>
               </div>
-              <div style={styles.modalActions}>
-                <button style={styles.cancelBtn} onClick={closeCreateChannel}>Cancel</button>
+              <div className="pr-modal-actions">
+                <button className="pr-cancel-btn" onClick={closeCreateChannel}>Cancel</button>
                 {newChannelPrivate ? (
-                  <button style={styles.confirmBtn} onClick={() => { if (newChannelName.trim()) setCreateChannelStep(2); }}>
-                    Next →
-                  </button>
+                  <button className="pr-confirm-btn" onClick={() => { if (newChannelName.trim()) setCreateChannelStep(2); }}>Next →</button>
                 ) : (
-                  <button style={styles.confirmBtn} onClick={createChannel}>Create</button>
+                  <button className="pr-confirm-btn" onClick={createChannel}>Create</button>
                 )}
               </div>
             </>
           ) : (
             <>
-              {/* Step 2: roles + members selection */}
               <div style={{ marginBottom: 14 }}>
                 <p style={{ fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-display)', letterSpacing: '0.04em', margin: 0 }}>
                   Choose who can access <strong style={{ color: 'var(--text-2)' }}>#{newChannelName}</strong>. Admins always have access.
                 </p>
               </div>
-
-              {/* Roles section */}
               {server.roles.filter(r => !r.isDefault).length > 0 && (
                 <>
-                  <label style={styles.label}>ROLES</label>
+                  <label className="pr-label">ROLES</label>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 14 }}>
                     {server.roles.filter(r => !r.isDefault).map(role => {
                       const checked = newChannelAllowedRoles.includes(role.id);
                       return (
-                        <div
-                          key={role.id}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px',
-                            background: checked ? `${role.color}14` : 'var(--bg)',
-                            border: `1px solid ${checked ? role.color + '55' : 'var(--border)'}`,
-                            borderRadius: 'var(--radius)', cursor: 'pointer', transition: 'all 0.15s',
-                          }}
-                          onClick={() => setNewChannelAllowedRoles(prev =>
-                            prev.includes(role.id) ? prev.filter(id => id !== role.id) : [...prev, role.id]
-                          )}
-                        >
-                          <div style={{
-                            width: 14, height: 14, borderRadius: 3, border: `2px solid ${role.color}`,
-                            background: checked ? role.color : 'transparent', flexShrink: 0, transition: 'background 0.15s',
-                          }} />
-                          <span style={{ fontSize: 13, color: role.color, fontFamily: 'var(--font-display)', fontWeight: 600 }}>
-                            {role.name}
-                          </span>
-                          <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-display)', marginLeft: 'auto' }}>
-                            role
-                          </span>
+                        <div key={role.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', background: checked ? `${role.color}14` : 'var(--bg)', border: `1px solid ${checked ? role.color + '55' : 'var(--border)'}`, borderRadius: 'var(--radius)', cursor: 'pointer', transition: 'all 0.15s' }}
+                          onClick={() => setNewChannelAllowedRoles(prev => prev.includes(role.id) ? prev.filter(id => id !== role.id) : [...prev, role.id])}>
+                          <div style={{ width: 14, height: 14, borderRadius: 3, border: `2px solid ${role.color}`, background: checked ? role.color : 'transparent', flexShrink: 0, transition: 'background 0.15s' }} />
+                          <span style={{ fontSize: 13, color: role.color, fontFamily: 'var(--font-display)', fontWeight: 600 }}>{role.name}</span>
+                          <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-display)', marginLeft: 'auto' }}>role</span>
                         </div>
                       );
                     })}
                   </div>
                 </>
               )}
-
-              {/* Members section */}
-              <label style={styles.label}>MEMBERS</label>
+              <label className="pr-label">MEMBERS</label>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 200, overflowY: 'auto' }}>
-                {server.members
-                  .filter(m => m.userId !== server.ownerId) // owner always has access
-                  .map(m => {
-                    const checked = newChannelAllowedMembers.includes(m.userId);
-                    return (
-                      <div
-                        key={m.userId}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
-                          background: checked ? 'rgba(255,255,255,0.06)' : 'var(--bg)',
-                          border: `1px solid ${checked ? 'rgba(255,255,255,0.2)' : 'var(--border)'}`,
-                          borderRadius: 'var(--radius)', cursor: 'pointer', transition: 'all 0.15s',
-                        }}
-                        onClick={() => setNewChannelAllowedMembers(prev =>
-                          prev.includes(m.userId) ? prev.filter(id => id !== m.userId) : [...prev, m.userId]
-                        )}
-                      >
-                        <div style={{
-                          width: 14, height: 14, borderRadius: 3, border: '2px solid var(--text-3)',
-                          background: checked ? 'var(--text)' : 'transparent', flexShrink: 0, transition: 'background 0.15s',
-                        }} />
-                        <span style={{ fontSize: 13, color: 'var(--text-2)', fontFamily: 'var(--font-display)', fontWeight: 500 }}>
-                          {m.nickname || m.username}
-                        </span>
-                        {m.nickname && (
-                          <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-display)' }}>
-                            {m.username}
-                          </span>
-                        )}
-                        <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-display)', marginLeft: 'auto' }}>
-                          member
-                        </span>
-                      </div>
-                    );
-                  })}
+                {server.members.filter(m => m.userId !== server.ownerId).map(m => {
+                  const checked = newChannelAllowedMembers.includes(m.userId);
+                  return (
+                    <div key={m.userId} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: checked ? 'rgba(255,255,255,0.06)' : 'var(--bg)', border: `1px solid ${checked ? 'rgba(255,255,255,0.2)' : 'var(--border)'}`, borderRadius: 'var(--radius)', cursor: 'pointer', transition: 'all 0.15s' }}
+                      onClick={() => setNewChannelAllowedMembers(prev => prev.includes(m.userId) ? prev.filter(id => id !== m.userId) : [...prev, m.userId])}>
+                      <div style={{ width: 14, height: 14, borderRadius: 3, border: '2px solid var(--text-3)', background: checked ? 'var(--text)' : 'transparent', flexShrink: 0, transition: 'background 0.15s' }} />
+                      <span style={{ fontSize: 13, color: 'var(--text-2)', fontFamily: 'var(--font-display)', fontWeight: 500 }}>{m.nickname || m.username}</span>
+                      {m.nickname && <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-display)' }}>{m.username}</span>}
+                      <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-display)', marginLeft: 'auto' }}>member</span>
+                    </div>
+                  );
+                })}
               </div>
-
-              <div style={{ ...styles.modalActions, marginTop: 18 }}>
-                <button style={styles.cancelBtn} onClick={() => setCreateChannelStep(1)}>← Back</button>
-                <button style={styles.confirmBtn} onClick={createChannel}>Create Channel</button>
+              <div className="pr-modal-actions" style={{ marginTop: 18 }}>
+                <button className="pr-cancel-btn" onClick={() => setCreateChannelStep(1)}>← Back</button>
+                <button className="pr-confirm-btn" onClick={createChannel}>Create Channel</button>
               </div>
             </>
           )}
@@ -488,11 +448,11 @@ export default function ServerSidebar({
       {/* Create category modal */}
       {showCreateCategory && (
         <Modal title="CREATE CATEGORY" onClose={() => setShowCreateCategory(false)}>
-          <label style={styles.label}>CATEGORY NAME</label>
-          <input style={styles.input} placeholder="TEXT CHANNELS" value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} onKeyDown={e => e.key === 'Enter' && createCategory()} autoFocus />
-          <div style={styles.modalActions}>
-            <button style={styles.cancelBtn} onClick={() => setShowCreateCategory(false)}>Cancel</button>
-            <button style={styles.confirmBtn} onClick={createCategory}>Create</button>
+          <label className="pr-label">CATEGORY NAME</label>
+          <input className="pr-input" placeholder="TEXT CHANNELS" value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} onKeyDown={e => e.key === 'Enter' && createCategory()} autoFocus />
+          <div className="pr-modal-actions">
+            <button className="pr-cancel-btn" onClick={() => setShowCreateCategory(false)}>Cancel</button>
+            <button className="pr-confirm-btn" onClick={createCategory}>Create</button>
           </div>
         </Modal>
       )}
@@ -503,21 +463,22 @@ export default function ServerSidebar({
           <p style={{ color: 'var(--text-2)', fontSize: 12, marginBottom: 8 }}>
             Share this link to invite others to <strong>{server.name}</strong>
           </p>
-          <div style={styles.inviteRow}>
-            <input style={{ ...styles.input, flex: 1 }} value={inviteCode} readOnly />
-            <button style={styles.copyBtn} onClick={() => navigator.clipboard.writeText(inviteCode)}>Copy</button>
+          <div className="pr-invite-row">
+            <input className="pr-input" style={{ flex: 1 }} value={inviteCode} readOnly />
+            <button className="pr-copy-btn" onClick={() => navigator.clipboard.writeText(inviteCode)}>Copy</button>
           </div>
           <p style={{ color: 'var(--text-3)', fontSize: 11, marginTop: 8 }}>Expires in 24 hours</p>
         </Modal>
       )}
+
       {/* Confirm dialog */}
       {confirmDialog && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }} onClick={() => setConfirmDialog(null)}>
-          <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '24px 28px', minWidth: 280, maxWidth: 360 }} onClick={e => e.stopPropagation()}>
+        <div className="pr-overlay" onClick={() => setConfirmDialog(null)}>
+          <div className="pr-modal" style={{ minWidth: 280, maxWidth: 360 }} onClick={e => e.stopPropagation()}>
             <p style={{ fontSize: 14, color: 'var(--text-2)', fontFamily: 'var(--font-display)', marginBottom: 20, lineHeight: 1.5 }}>{confirmDialog.message}</p>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setConfirmDialog(null)} style={{ padding: '7px 16px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 13, fontFamily: 'var(--font-display)' }}>Cancel</button>
-              <button onClick={() => { confirmDialog.onConfirm(); setConfirmDialog(null); }} style={{ padding: '7px 16px', border: 'none', borderRadius: 'var(--radius)', background: 'var(--danger)', color: '#fff', cursor: 'pointer', fontSize: 13, fontFamily: 'var(--font-display)', fontWeight: 700 }}>Confirm</button>
+              <button onClick={() => setConfirmDialog(null)} className="pr-cancel-btn">Cancel</button>
+              <button onClick={() => { confirmDialog.onConfirm(); setConfirmDialog(null); }} className="pr-confirm-btn" style={{ background: 'var(--danger)', color: '#fff' }}>Confirm</button>
             </div>
           </div>
         </div>
@@ -550,13 +511,14 @@ function CategorySection({ category, channels, activeChannelId, canManage, dragg
   const isCatDragging = dragging?.type === 'category' && dragging.id === category.id;
   return (
     <div
-      style={{ ...styles.section, ...(isCategoryDragOver ? { background: 'rgba(255,255,255,0.03)', borderRadius: 6 } : {}), opacity: isCatDragging ? 0.4 : 1, transition: 'opacity 0.15s' }}
+      className="pr-section"
+      style={{ ...(isCategoryDragOver ? { background: 'rgba(255,255,255,0.03)', borderRadius: 6 } : {}), opacity: isCatDragging ? 0.4 : 1, transition: 'opacity 0.15s' }}
       onDragOver={canManage ? onCategoryDragOver : undefined}
       onDragLeave={canManage ? onCategoryDragLeave : undefined}
       onDrop={canManage ? onCategoryDrop : undefined}
     >
       <button
-        style={{ ...styles.categoryHeader, cursor: 'pointer' }}
+        className="pr-category-header"
         onClick={() => setCollapsed(v => !v)}
         onContextMenu={onCategoryContextMenu}
         draggable={canManage}
@@ -564,8 +526,9 @@ function CategorySection({ category, channels, activeChannelId, canManage, dragg
         onDragEnd={canManage ? onCategoryDragEnd : undefined}
       >
         {canManage && <span style={{ fontSize: 9, color: 'var(--text-3)', opacity: 0.5, marginRight: 2 }}>⠿</span>}
-        <span style={styles.categoryArrow}>{collapsed ? '›' : '⌄'}</span>
-        <span style={styles.categoryName}>{category.name}</span>
+        {/* Arrow always uses the same chevron character; rotation is CSS-only */}
+        <span className={`pr-category-arrow pr-category-arrow--${collapsed ? 'closed' : 'open'}`}>›</span>
+        <span className="pr-category-name">{category.name}</span>
       </button>
       {!collapsed && channels.map(ch => (
         <ChannelItem
@@ -602,19 +565,17 @@ function ChannelItem({ channel, active, onClick, onContextMenu, canManage, isDra
   onDrop?: (e: React.DragEvent) => void;
   onDragEnd?: () => void;
 }) {
+  const cls = [
+    'pr-channel-item',
+    active ? 'pr-channel-item--active' : '',
+    isDragOver ? 'pr-channel-item--drag-over' : '',
+    isDragging ? 'pr-channel-item--dragging' : '',
+  ].filter(Boolean).join(' ');
+
   return (
     <button
       draggable={canManage}
-      style={{
-        ...styles.channelItem,
-        background: isDragOver ? 'var(--bg-3)' : active ? 'var(--bg-3)' : 'transparent',
-        color: active ? '#ffffff' : '#e0e0e0',
-        borderLeft: active ? '2px solid var(--text)' : isDragOver ? '2px solid rgba(255,255,255,0.4)' : '2px solid transparent',
-        cursor: 'pointer',
-        opacity: isDragging ? 0.4 : 1,
-        transform: isDragOver ? 'translateY(-1px)' : 'none',
-        transition: 'all var(--transition)',
-      }}
+      className={cls}
       onClick={onClick}
       onContextMenu={onContextMenu}
       onDragStart={onDragStart}
@@ -624,19 +585,19 @@ function ChannelItem({ channel, active, onClick, onContextMenu, canManage, isDra
       onDragEnd={onDragEnd}
     >
       {canManage && <span style={{ fontSize: 8, color: 'var(--text-3)', opacity: 0.4, flexShrink: 0 }}>⠿</span>}
-      <span style={styles.channelHash}>{channel.isPrivate ? <IconLock /> : '#'}</span>
-      <span style={styles.channelName}>{channel.name}</span>
+      <span className="pr-channel-hash">{channel.isPrivate ? <IconLock /> : '#'}</span>
+      <span className="pr-channel-name">{channel.name}</span>
     </button>
   );
 }
 
 function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
   return (
-    <div style={styles.overlay} onClick={onClose}>
-      <div style={styles.modal} onClick={e => e.stopPropagation()}>
-        <div style={styles.modalHeader}>
-          <span style={styles.modalTitle}>{title}</span>
-          <button onClick={onClose} style={styles.closeBtn}>✕</button>
+    <div className="pr-overlay" onClick={onClose}>
+      <div className="pr-modal" onClick={e => e.stopPropagation()}>
+        <div className="pr-modal-header">
+          <span className="pr-modal-title">{title}</span>
+          <button onClick={onClose} className="pr-close-btn">x</button>
         </div>
         {children}
       </div>
@@ -674,37 +635,3 @@ const IconFolder = () => (
     <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
   </svg>
 );
-
-const styles: Record<string, React.CSSProperties> = {
-  sidebar: { width: 455, minWidth: 455, height: '100dvh', background: 'var(--bg-1)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' },
-  header: { padding: '0 16px', height: 72, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 },
-  backBtn: { color: 'var(--text-3)', padding: 4, borderRadius: 'var(--radius)', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'color var(--transition)', flexShrink: 0 },
-  serverName: { flex: 1, fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 20, letterSpacing: '0.06em', color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  settingsBtn: { color: 'var(--text-3)', padding: 4, borderRadius: 'var(--radius)', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'color var(--transition)', flexShrink: 0 },
-  quickActions: { padding: '10px 10px 0' },
-  actionBtn: { display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '11px 14px', borderRadius: 'var(--radius-md)', color: '#f0f0f0', fontSize: 15, cursor: 'pointer', border: '1px dashed var(--border-bright)', transition: 'all var(--transition)', fontFamily: 'var(--font-display)', letterSpacing: '0.04em', marginBottom: 4 },
-  channelList: { flex: 1, overflowY: 'auto', padding: '10px 6px' },
-  section: { marginBottom: 4 },
-  categoryHeader: { display: 'flex', alignItems: 'center', gap: 4, width: '100%', padding: '10px 12px', cursor: 'pointer', color: 'var(--text-3)', border: 'none', background: 'transparent', textAlign: 'left' },
-  categoryArrow: { fontSize: 13, color: '#f0f0f0', width: 16, display: 'inline-block' },
-  categoryName: { fontSize: 13, letterSpacing: '0.12em', fontFamily: 'var(--font-display)', fontWeight: 700, color: '#f0f0f0' },
-  channelItem: { display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '13px 16px', cursor: 'pointer', border: 'none', borderRadius: 'var(--radius-md)', textAlign: 'left', transition: 'all var(--transition)' },
-  channelHash: { color: '#d4d4d4', fontSize: 20, fontWeight: 400, flexShrink: 0 },
-  channelName: { fontSize: 18, fontFamily: 'var(--font-display)', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '0.02em' },
-  addRow: { padding: '10px 6px 0', display: 'flex', flexDirection: 'column', gap: 4 },
-  addBtn: { display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '10px 14px', borderRadius: 'var(--radius)', color: '#f0f0f0', fontSize: 14, cursor: 'pointer', border: 'none', background: 'transparent', transition: 'color var(--transition)', letterSpacing: '0.04em', fontFamily: 'var(--font-display)' },
-  contextMenu: { position: 'fixed', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: 4, zIndex: 1000, minWidth: 180, boxShadow: '0 8px 32px rgba(0,0,0,0.4)' },
-  contextItem: { display: 'block', width: '100%', padding: '10px 14px', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 13, fontFamily: 'var(--font-display)', borderRadius: 'var(--radius)', letterSpacing: '0.02em' },
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 },
-  modal: { background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: 28, minWidth: 360, maxWidth: 480, width: '100%' },
-  modalHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 },
-  modalTitle: { fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, letterSpacing: '0.1em', color: 'var(--text)' },
-  closeBtn: { color: 'var(--text-3)', cursor: 'pointer', fontSize: 16, padding: 4, border: 'none', background: 'transparent', fontFamily: 'var(--font-display)' },
-  label: { display: 'block', fontSize: 11, letterSpacing: '0.12em', color: 'var(--text-3)', fontFamily: 'var(--font-display)', fontWeight: 700, marginBottom: 7, marginTop: 14 },
-  input: { width: '100%', padding: '10px 13px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', color: 'var(--text)', fontSize: 14, outline: 'none', fontFamily: 'var(--font-display)' },
-  modalActions: { display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 22 },
-  cancelBtn: { padding: '9px 18px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 13, fontFamily: 'var(--font-display)' },
-  confirmBtn: { padding: '9px 22px', border: 'none', borderRadius: 'var(--radius)', background: 'var(--text)', color: 'var(--bg)', cursor: 'pointer', fontSize: 13, fontFamily: 'var(--font-display)', fontWeight: 700, letterSpacing: '0.06em' },
-  inviteRow: { display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 },
-  copyBtn: { padding: '10px 16px', background: 'var(--text)', color: 'var(--bg)', border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: 13, fontFamily: 'var(--font-display)', fontWeight: 700, flexShrink: 0 },
-};
