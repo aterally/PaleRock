@@ -247,6 +247,7 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
             messages={messages}
             currentUserId={currentUser.id}
             currentUsername={currentUser.username}
+            currentUserAvatar={currentUser.avatar}
             otherUsername={otherUser?.username || ''}
             channelId={channelId}
             onProfileClick={handleProfileClick}
@@ -404,10 +405,11 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
   );
 }
 
-function MessageList({ messages, currentUserId, currentUsername, otherUsername, channelId, onProfileClick, onReply, onDelete, onLongPress }: {
+function MessageList({ messages, currentUserId, currentUsername, currentUserAvatar, otherUsername, channelId, onProfileClick, onReply, onDelete, onLongPress }: {
   messages: Message[];
   currentUserId: string;
   currentUsername: string;
+  currentUserAvatar?: string | null;
   otherUsername: string;
   channelId: string;
   onProfileClick?: (e: React.MouseEvent, senderId: string, senderUsername: string, senderAvatar?: string | null) => void;
@@ -432,14 +434,14 @@ function MessageList({ messages, currentUserId, currentUsername, otherUsername, 
             <span style={s.dateLabel}>{formatDate(group.date)}</span>
             <div style={s.dateLine} />
           </div>
-          {renderClusters(group.messages, currentUserId, currentUsername, otherUsername, channelId, onProfileClick, onReply, onDelete, onLongPress)}
+          {renderClusters(group.messages, currentUserId, currentUsername, currentUserAvatar, otherUsername, channelId, onProfileClick, onReply, onDelete, onLongPress)}
         </div>
       ))}
     </>
   );
 }
 
-function renderClusters(messages: Message[], currentUserId: string, currentUsername: string, otherUsername: string, channelId: string, onProfileClick?: (e: React.MouseEvent, senderId: string, senderUsername: string, senderAvatar?: string | null) => void, onReply?: (msg: Message) => void, onDelete?: (msgId: string) => void, onLongPress?: (msg: Message, x: number, y: number) => void) {
+function renderClusters(messages: Message[], currentUserId: string, currentUsername: string, currentUserAvatar: string | null | undefined, otherUsername: string, channelId: string, onProfileClick?: (e: React.MouseEvent, senderId: string, senderUsername: string, senderAvatar?: string | null) => void, onReply?: (msg: Message) => void, onDelete?: (msgId: string) => void, onLongPress?: (msg: Message, x: number, y: number) => void) {
   const nodes: React.ReactNode[] = [];
   let i = 0;
 
@@ -455,21 +457,29 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
     ) { i++; cluster.push(messages[i]); }
 
     nodes.push(
-      // Outer row: full width, flex row, justifies left or right
       <div key={cluster[0].id} style={{
         display: 'flex',
         flexDirection: 'row',
         justifyContent: isMe ? 'flex-end' : 'flex-start',
         width: '100%',
-        marginBottom: 14,
+        marginBottom: 12,
+        gap: 8,
       }}>
-        {/* Inner column: contains meta + bubbles, max 60% wide */}
+        {/* Avatar — left for others */}
+        {!isMe && (
+          <span style={{ flexShrink: 0, alignSelf: 'flex-end', cursor: 'pointer' }}
+            onClick={(e) => onProfileClick?.(e, msg.senderId, msg.senderUsername, msg.senderAvatar)}>
+            <Avatar username={msg.senderUsername} avatar={msg.senderAvatar} size={28} />
+          </span>
+        )}
+
+        {/* Inner column: meta + messages */}
         <div style={{
           display: 'flex',
           flexDirection: 'column',
           alignItems: isMe ? 'flex-end' : 'flex-start',
-          maxWidth: '60%',
-          gap: 2,
+          maxWidth: '72%',
+          gap: 3,
         }}>
           {/* Meta row */}
           <div style={{
@@ -477,13 +487,8 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
             flexDirection: isMe ? 'row-reverse' : 'row',
             alignItems: 'center',
             gap: 6,
-            marginBottom: 3,
+            marginBottom: 1,
           }}>
-            {!isMe && (
-              <span onClick={(e) => onProfileClick?.(e, msg.senderId, msg.senderUsername, msg.senderAvatar)} style={{ cursor: 'pointer' }}>
-                <Avatar username={msg.senderUsername} avatar={msg.senderAvatar} size={16} />
-              </span>
-            )}
             <span
               style={{ ...s.metaName, cursor: !isMe ? 'pointer' : 'default' }}
               onClick={!isMe ? (e) => onProfileClick?.(e, msg.senderId, msg.senderUsername, msg.senderAvatar) : undefined}
@@ -491,19 +496,14 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
             <span style={s.metaTime}>{formatTime(cluster[cluster.length - 1].createdAt)}</span>
           </div>
 
-          {/* Bubble(s) */}
+          {/* Messages */}
           {cluster.map((m, idx) => {
-            const first = idx === 0;
-            const last = idx === cluster.length - 1;
-            const r = 16;
-            const t = 5;
             let lpTimer: ReturnType<typeof setTimeout> | null = null;
             function handleTouchStart(e: React.TouchEvent) {
               const touch = e.touches[0];
               const tx = touch.clientX;
               const ty = touch.clientY;
               lpTimer = setTimeout(() => {
-                // position menu: avoid right/bottom overflow
                 const mx = Math.min(tx, window.innerWidth - 180);
                 const my = Math.min(ty, window.innerHeight - 120);
                 onLongPress?.(m, mx, my);
@@ -513,7 +513,7 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
               if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; }
             }
 
-            // Game message — render card instead of bubble
+            // Game message — render card
             if (m.content.startsWith('__GAME__:')) {
               let gameInfo: { gameId: string; type: string; status: string } | null = null;
               try { gameInfo = JSON.parse(m.content.slice('__GAME__:'.length)); } catch {}
@@ -539,7 +539,7 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
             }
 
             return (
-              <div key={m.id} style={{ position: 'relative' }} className="msg-wrap"
+              <div key={m.id} style={{ position: 'relative', width: '100%' }} className="msg-wrap"
                 onTouchStart={handleTouchStart}
                 onTouchEnd={handleTouchEnd}
                 onTouchMove={handleTouchEnd}
@@ -547,38 +547,35 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
                 {/* Reply preview */}
                 {m.replyTo && (
                   <div style={{
-                    fontSize: 11, color: 'var(--text-3)', marginBottom: 2,
-                    paddingLeft: isMe ? 0 : 8, paddingRight: isMe ? 8 : 0,
+                    fontSize: 12, color: 'var(--text-3)', marginBottom: 2,
                     display: 'flex', alignItems: 'center', gap: 4,
                     justifyContent: isMe ? 'flex-end' : 'flex-start',
+                    fontFamily: "'Cormorant Garamond', Georgia, serif",
+                    fontStyle: 'italic',
                   }}>
-                    <span style={{ opacity: 0.5 }}>re:</span>
+                    <span style={{ opacity: 0.5 }}>↩</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-2)' }}>{m.replyTo.senderUsername}</span>
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>{m.replyTo.content}</span>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160, opacity: 0.7 }}>{m.replyTo.content}</span>
                   </div>
                 )}
+                {/* Plain text — no bubble */}
                 <div style={{
-                  padding: '9px 14px',
-                  fontSize: 14,
-                  lineHeight: 1.6,
+                  fontSize: 17,
+                  lineHeight: 1.55,
                   wordBreak: 'break-word',
                   whiteSpace: 'pre-wrap',
                   letterSpacing: '0.01em',
                   animation: 'fadeIn 0.12s ease',
-                  background: isMe ? '#e8e8e8' : '#1c1c1c',
-                  color: isMe ? '#0d0d0d' : '#e8e8e8',
-                  marginBottom: last ? 0 : 2,
-                  borderRadius: isMe
-                    ? `${first ? r : t}px ${t}px ${t}px ${last ? r : t}px`
-                    : `${t}px ${first ? r : t}px ${last ? r : t}px ${t}px`,
-                  fontFamily: "'Inter', system-ui, sans-serif",
+                  color: isMe ? 'var(--text)' : 'var(--text-2)',
+                  fontFamily: "'Cormorant Garamond', Georgia, serif",
                   fontWeight: 400,
+                  textAlign: isMe ? 'right' : 'left',
                 }}>
                   {m.content}
                 </div>
                 {/* Hover action buttons */}
                 <div className="msg-actions" style={{
-                  position: 'absolute', top: -2,
+                  position: 'absolute', top: 0,
                   ...(isMe ? { left: -60 } : { right: -60 }),
                   display: 'flex', gap: 4, opacity: 0,
                   transition: 'opacity 0.1s',
@@ -604,6 +601,13 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
             );
           })}
         </div>
+
+        {/* Avatar on the right for own messages */}
+        {isMe && (
+          <span style={{ flexShrink: 0, alignSelf: 'flex-end' }}>
+            <Avatar username={currentUsername} avatar={currentUserAvatar ?? null} size={28} />
+          </span>
+        )}
       </div>
     );
     i++;

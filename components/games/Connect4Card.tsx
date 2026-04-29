@@ -224,7 +224,8 @@ export default function Connect4Card({
           )}
         </div>
       )}
-      {/* Board — entire board area is clickable by column */}
+      {/* Board — only shown when board data exists (active game) */}
+      {board.length > 0 && (
       <div style={{ position: 'relative', display: 'inline-block' }}>
         {/* Hover indicators row */}
         <div style={{
@@ -307,6 +308,7 @@ export default function Connect4Card({
           })}
         </div>
       </div>
+      )}
     </div>
   );
 }

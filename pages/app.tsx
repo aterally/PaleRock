@@ -24,6 +24,7 @@ export interface User {
   username: string;
   email: string;
   bio: string;
+  avatar?: string | null;
   registeredAt: string;
   status?: string;
 }
