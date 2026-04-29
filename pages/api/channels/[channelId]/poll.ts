@@ -29,6 +29,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   });
   if (!channel) return res.status(403).json({ error: 'Access denied' });
 
+  // Purge expired disappearing messages
+  await db.collection('messages').deleteMany({
+    channelId: new ObjectId(channelId),
+    disappearAt: { $lte: new Date() },
+  });
+
   const query: Record<string, unknown> = { channelId: new ObjectId(channelId) };
   if (after) {
     query._id = { $gt: new ObjectId(after) };
@@ -64,6 +70,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       createdAt: m.createdAt,
       editedAt: m.editedAt || null,
       replyTo: m.replyTo || null,
+      disappearAt: m.disappearAt || null,
     }))
   });
 }

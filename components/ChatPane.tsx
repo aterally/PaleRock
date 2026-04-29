@@ -14,6 +14,7 @@ interface Message {
   createdAt: string;
   editedAt: string | null;
   replyTo?: { id: string; senderUsername: string; content: string } | null;
+  disappearAt?: string | null;
 }
 
 interface ChatPaneProps {
@@ -29,6 +30,9 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [disappearAfterMs, setDisappearAfterMs] = useState<number | null>(null);
+  const [showDisappearPicker, setShowDisappearPicker] = useState(false);
+  const [settingDisappear, setSettingDisappear] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const lastIdRef = useRef<string>('');
@@ -80,6 +84,7 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
         if (data.messages) {
           setMessages(data.messages);
           setHasMore(data.hasMore);
+          setDisappearAfterMs(data.disappearAfterMs ?? null);
           if (data.messages.length > 0) lastIdRef.current = data.messages[data.messages.length - 1].id;
         }
         setLoading(false);
@@ -201,6 +206,38 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
     if (e.key === 'Escape') setReplyTo(null);
   }
 
+  // Client-side expiry: remove messages whose disappearAt has passed
+  useEffect(() => {
+    if (!messages.some(m => m.disappearAt)) return;
+    const tick = setInterval(() => {
+      const now = new Date();
+      setMessages(prev => prev.filter(m => !m.disappearAt || new Date(m.disappearAt) > now));
+    }, 5000);
+    return () => clearInterval(tick);
+  }, [messages]);
+
+  async function setDisappearTimer(ms: number | null) {
+    setSettingDisappear(true);
+    setShowDisappearPicker(false);
+    try {
+      const r = await fetch(`/api/channels/${channelId}/disappearing`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ disappearAfterMs: ms }),
+      });
+      if (r.ok) {
+        setDisappearAfterMs(ms);
+        // If turning on, stamp existing messages client-side
+        if (ms) {
+          const disappearAt = new Date(Date.now() + ms).toISOString();
+          setMessages(prev => prev.map(m => ({ ...m, disappearAt: m.disappearAt ?? disappearAt })));
+        } else {
+          setMessages(prev => prev.map(m => ({ ...m, disappearAt: null })));
+        }
+      }
+    } finally { setSettingDisappear(false); }
+  }
+
   const otherUser = channel?.otherUser;
   const [dmProfile, setDmProfile] = useState<{ senderId: string; senderUsername: string; senderAvatar?: string | null; x: number; y: number } | null>(null);
 
@@ -241,7 +278,7 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
             }} />
           </div>
         )}
-        <div>
+        <div style={{ flex: 1 }}>
           <div style={s.headerName}>{otherUser?.username || '…'}</div>
           {dmLastSeenLabel ? (
             <div style={{ fontSize: 11, color: dmIsOnline ? '#23a55a' : 'var(--text-3)', fontFamily: 'var(--font-display)', letterSpacing: '0.02em' }}>
@@ -251,8 +288,74 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
             <div style={s.headerBio}>{otherUser.bio}</div>
           ) : null}
         </div>
+        {/* Disappearing messages button */}
+        <div style={{ position: 'relative', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+          <button
+            title={disappearAfterMs ? `Disappearing: ${disappearLabel(disappearAfterMs)}` : 'Set disappearing messages'}
+            onClick={() => setShowDisappearPicker(v => !v)}
+            disabled={settingDisappear}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '5px 10px',
+              background: disappearAfterMs ? 'rgba(126,184,247,0.12)' : 'transparent',
+              border: '1px solid ' + (disappearAfterMs ? '#7eb8f7' : 'var(--border)'),
+              borderRadius: 'var(--radius-md)',
+              color: disappearAfterMs ? '#7eb8f7' : 'var(--text-3)',
+              cursor: 'pointer', fontSize: 11,
+              fontFamily: 'var(--font-display)',
+              letterSpacing: '0.04em',
+              transition: 'all 0.15s',
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              {disappearAfterMs && <line x1="2" y1="2" x2="22" y2="22" stroke="currentColor" strokeWidth="2"/>}
+            </svg>
+            {disappearAfterMs ? disappearLabel(disappearAfterMs) : 'Disappear'}
+          </button>
+          {showDisappearPicker && (
+            <div style={{
+              position: 'absolute', top: 38, right: 0,
+              background: 'var(--bg-2)', border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-md)', padding: '6px',
+              minWidth: 180, boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+              zIndex: 200,
+            }}>
+              <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-display)', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', padding: '6px 10px 8px', borderBottom: '1px solid var(--border)', marginBottom: 4 }}>
+                Disappearing Messages
+              </div>
+              {DISAPPEAR_OPTIONS.map(opt => (
+                <button
+                  key={String(opt.ms)}
+                  onClick={() => setDisappearTimer(opt.ms)}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    width: '100%', padding: '9px 12px',
+                    background: disappearAfterMs === opt.ms ? 'var(--bg-3)' : 'none',
+                    border: 'none', borderRadius: 'var(--radius)',
+                    cursor: 'pointer', color: disappearAfterMs === opt.ms ? 'var(--text)' : 'var(--text-2)',
+                    fontFamily: 'var(--font-display)', fontSize: 13, textAlign: 'left',
+                    transition: 'background 0.1s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-3)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = disappearAfterMs === opt.ms ? 'var(--bg-3)' : 'none')}
+                >
+                  <span>{opt.label}</span>
+                  {disappearAfterMs === opt.ms && <span style={{ fontSize: 10, opacity: 0.7 }}>✓</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
+      {/* Disappearing messages banner */}
+      {disappearAfterMs && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 32px', background: 'rgba(126,184,247,0.07)', borderBottom: '1px solid rgba(126,184,247,0.2)', fontSize: 12, color: '#7eb8f7', fontFamily: 'var(--font-display)', letterSpacing: '0.02em' }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Messages disappear after {disappearLabel(disappearAfterMs)}
+        </div>
+      )}
       {/* Messages */}
       <div ref={listRef} style={s.scroller}>
         <div style={s.messageList}>
@@ -603,6 +706,17 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
                 }}>
                   {renderContent(m.content)}
                 </div>
+                {/* Disappear countdown */}
+                {m.disappearAt && (
+                  <div style={{
+                    fontSize: 10, color: '#7eb8f7', opacity: 0.7,
+                    fontFamily: "'Inter', system-ui, sans-serif",
+                    marginTop: 2,
+                    textAlign: isMe ? 'right' : 'left',
+                  }}>
+                    ⏱ disappears {new Date(m.disappearAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                )}
                 {/* Hover action buttons */}
                 <div className="msg-actions" style={{
                   position: 'absolute', top: 0,
@@ -644,6 +758,22 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
   }
 
   return nodes;
+}
+
+
+const DISAPPEAR_OPTIONS = [
+  { label: 'Off', ms: null },
+  { label: '30 seconds', ms: 30 * 1000 },
+  { label: '5 minutes', ms: 5 * 60 * 1000 },
+  { label: '1 hour', ms: 60 * 60 * 1000 },
+  { label: '1 day', ms: 24 * 60 * 60 * 1000 },
+  { label: '1 week', ms: 7 * 24 * 60 * 60 * 1000 },
+];
+
+function disappearLabel(ms: number | null) {
+  if (!ms) return null;
+  const opt = DISAPPEAR_OPTIONS.find(o => o.ms === ms);
+  return opt ? opt.label : null;
 }
 
 function renderContent(text: string): React.ReactNode {

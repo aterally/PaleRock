@@ -29,6 +29,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // GET: fetch messages
   if (req.method === 'GET') {
+    // Purge expired disappearing messages
+    await db.collection('messages').deleteMany({
+      channelId: new ObjectId(channelId),
+      disappearAt: { $lte: new Date() },
+    });
+
     const before = req.query.before as string | undefined;
     const limit = 50;
 
@@ -65,9 +71,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       createdAt: m.createdAt,
       editedAt: m.editedAt || null,
       replyTo: m.replyTo || null,
+      disappearAt: m.disappearAt || null,
     }));
 
-    return res.status(200).json({ messages: result, hasMore: messages.length === limit });
+    return res.status(200).json({ messages: result, hasMore: messages.length === limit, disappearAfterMs: channel.disappearAfterMs ?? null });
   }
 
   // POST: send message
@@ -93,6 +100,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const now = new Date();
+    const disappearAt = channel.disappearAfterMs ? new Date(now.getTime() + channel.disappearAfterMs) : null;
     const result = await db.collection('messages').insertOne({
       channelId: new ObjectId(channelId),
       senderId: meId,
@@ -100,6 +108,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       createdAt: now,
       editedAt: null,
       replyTo: replyTo ? { id: replyTo.id, senderUsername: replyTo.senderUsername, content: replyTo.content.slice(0, 200) } : null,
+      ...(disappearAt ? { disappearAt } : {}),
     });
 
     await db.collection('channels').updateOne(

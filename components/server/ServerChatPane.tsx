@@ -255,7 +255,7 @@ export default function ServerChatPane({
                         onTouchMove={handleTouchEnd}
                       >
                         {msg.replyTo && (
-                          <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 4, fontStyle: 'italic' }}>
+                          <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 4, fontStyle: 'italic' }}>
                             <span style={{ opacity: 0.6 }}>↩</span>
                             <span style={{ fontWeight: 600, color: 'var(--text-2)' }}>{msg.replyTo.authorUsername}</span>
                             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200, opacity: 0.8 }}>{msg.replyTo.content}</span>
@@ -342,12 +342,12 @@ export default function ServerChatPane({
                 <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, color: 'var(--text)' }}>{member.nickname || member.username}</div>
                 {mutedTimeLabel && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(237,66,69,0.12)', color: '#ed4245', border: '1px solid rgba(237,66,69,0.3)', fontFamily: 'var(--font-display)', fontWeight: 700 }}>{mutedTimeLabel}</span>}
               </div>
-              {member.nickname && <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 1, fontFamily: 'var(--font-mono)' }}>{member.username}</div>}
-              {member.pronouns && <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2, fontStyle: 'italic' }}>{member.pronouns}</div>}
+              {member.nickname && <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 1, fontFamily: 'var(--font-mono)' }}>{member.username}</div>}
+              {member.pronouns && <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2, fontStyle: 'italic' }}>{member.pronouns}</div>}
               {member.bio && <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 8, lineHeight: 1.5 }}>{member.bio}</div>}
               {profileRoles.length > 0 && (
                 <div style={{ marginTop: 10 }}>
-                  <div style={{ fontSize: 9, letterSpacing: '0.12em', color: 'var(--text-3)', fontFamily: 'var(--font-display)', fontWeight: 700 }}>ROLES</div>
+                  <div style={{ fontSize: 9, letterSpacing: '0.12em', color: 'var(--text-2)', fontFamily: 'var(--font-display)', fontWeight: 700 }}>ROLES</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
                     {profileRoles.map(r => (
                       <span key={r.id} style={{ fontSize: 9, padding: '1px 5px', border: `1px solid ${r.color}55`, borderRadius: 2, color: r.color }}>{r.name}</span>
@@ -356,7 +356,7 @@ export default function ServerChatPane({
                 </div>
               )}
               <div style={{ marginTop: 10 }}>
-                <div style={{ fontSize: 9, letterSpacing: '0.12em', color: 'var(--text-3)', fontFamily: 'var(--font-display)', fontWeight: 700 }}>JOINED SERVER</div>
+                <div style={{ fontSize: 9, letterSpacing: '0.12em', color: 'var(--text-2)', fontFamily: 'var(--font-display)', fontWeight: 700 }}>JOINED SERVER</div>
                 <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2 }}>{new Date(member.joinedAt).toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' })}</div>
               </div>
             </div>
@@ -367,8 +367,8 @@ export default function ServerChatPane({
       {/* Reply banner */}
       {replyTo && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 16px', background: 'var(--bg-2)', borderTop: '1px solid var(--border)', fontSize: 12 }}>
-          <span style={{ color: 'var(--text-3)' }}>Replying to <b style={{ color: 'var(--text-2)' }}>{replyTo.authorUsername}</b>: <span style={{ color: 'var(--text-3)', fontStyle: 'italic' }}>{replyTo.content.slice(0, 60)}{replyTo.content.length > 60 ? '...' : ''}</span></span>
-          <button onClick={() => setReplyTo(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '0 4px' }}>x</button>
+          <span style={{ color: 'var(--text-2)' }}>Replying to <b style={{ color: 'var(--text-2)' }}>{replyTo.authorUsername}</b>: <span style={{ color: 'var(--text-2)', fontStyle: 'italic' }}>{replyTo.content.slice(0, 60)}{replyTo.content.length > 60 ? '...' : ''}</span></span>
+          <button onClick={() => setReplyTo(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '0 4px' }}>x</button>
         </div>
       )}
       {/* Input */}
@@ -451,7 +451,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   hash: {
     fontSize: 22,
-    color: 'var(--text-3)',
+    color: '#ffffff',
     fontWeight: 300,
     flexShrink: 0,
   },
@@ -460,7 +460,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 700,
     fontSize: 16,
     letterSpacing: '0.04em',
-    color: 'var(--text)',
+    color: '#ffffff',
     flexShrink: 0,
   },
   divider: {
@@ -471,7 +471,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   topic: {
     fontSize: 13,
-    color: 'var(--text-3)',
+    color: 'var(--text-2)',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
@@ -504,7 +504,7 @@ const styles: Record<string, React.CSSProperties> = {
   loadingText: {
     fontSize: 12,
     letterSpacing: '0.15em',
-    color: 'var(--text-3)',
+    color: 'var(--text-2)',
     fontFamily: 'var(--font-display)',
   },
   emptyState: {
@@ -516,7 +516,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   channelIconLarge: {
     fontSize: 52,
-    color: 'var(--text-3)',
+    color: 'var(--text-2)',
     fontWeight: 300,
     marginBottom: 10,
   },
@@ -524,7 +524,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: 'var(--font-display)',
     fontSize: 22,
     fontWeight: 700,
-    color: 'var(--text)',
+    color: '#ffffff',
     marginBottom: 4,
   },
   emptyTopic: {
@@ -535,7 +535,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   emptyHint: {
     fontSize: 14,
-    color: 'var(--text-3)',
+    color: 'var(--text-2)',
     fontFamily: 'var(--font-display)',
   },
   messageGroup: {
@@ -609,13 +609,13 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'transparent',
     border: 'none',
     outline: 'none',
-    color: 'var(--text)',
-    fontSize: 15,
+    color: '#ffffff',
+    fontSize: 16,
     padding: '12px 0',
     fontFamily: 'var(--font-display)',
   },
   sendBtn: {
-    color: 'var(--text-3)',
+    color: '#ffffff',
     cursor: 'pointer',
     padding: '6px',
     display: 'flex',
@@ -632,7 +632,7 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid var(--border)',
     borderRadius: 'var(--radius-md)',
     fontSize: 14,
-    color: 'var(--text-3)',
+    color: '#ffffff',
     textAlign: 'center',
     fontFamily: 'var(--font-display)',
   },
