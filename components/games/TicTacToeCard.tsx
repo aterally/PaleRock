@@ -93,7 +93,7 @@ export default function TicTacToeCard({
 
   async function makeMove(cellIndex: number) {
     if (!game || game.turn !== currentUserId || acting) return;
-    if (game.board[cellIndex] !== null) return;
+    if (!game.board || game.board[cellIndex] !== null) return;
     setActing(true);
     try {
       await fetch(`/api/channels/${channelId}/game`, {
@@ -196,6 +196,7 @@ export default function TicTacToeCard({
 
   // --- FINISHED ---
   if (game.status === 'finished') {
+    const safeBoard = game.board || [];
     return (
       <div style={card}>
         <div style={cardHeader}>
@@ -204,12 +205,13 @@ export default function TicTacToeCard({
             {game.isDraw ? 'Draw' : iWon ? 'You won!' : `${otherUsername} won`}
           </span>
         </div>
-        <Board board={game.board} winningLine={getWinningLine(game.board)} onCell={null} mySymbol={mySymbol} />
+        <Board board={safeBoard} winningLine={safeBoard.length > 0 ? getWinningLine(safeBoard) : null} onCell={null} mySymbol={mySymbol} />
       </div>
     );
   }
 
   // --- ACTIVE ---
+  const safeBoard = game.board || [];
   return (
     <div style={card}>
       <div style={cardHeader}>
@@ -224,7 +226,7 @@ export default function TicTacToeCard({
         {otherUsername} is <span style={{ color: theirSymbol === 'X' ? '#e0e0e0' : '#a0a0a0', fontWeight: 600 }}>{theirSymbol}</span>
       </div>
       <Board
-        board={game.board}
+        board={safeBoard}
         winningLine={null}
         onCell={isMyTurn && !acting ? makeMove : null}
         mySymbol={mySymbol}
@@ -239,6 +241,7 @@ function Board({ board, winningLine, onCell, mySymbol }: {
   onCell: ((i: number) => void) | null;
   mySymbol: string;
 }) {
+  if (!board || board.length === 0) return null;
   return (
     <div style={{
       display: 'grid',
@@ -281,6 +284,7 @@ function Board({ board, winningLine, onCell, mySymbol }: {
 }
 
 function getWinningLine(board: (string | null)[]): number[] | null {
+  if (!board || board.length === 0) return null;
   const lines = [
     [0,1,2],[3,4,5],[6,7,8],
     [0,3,6],[1,4,7],[2,5,8],

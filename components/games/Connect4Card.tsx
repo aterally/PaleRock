@@ -112,10 +112,11 @@ export default function Connect4Card({
 
   async function dropPiece(col: number) {
     if (!game || game.turn !== currentUserId || acting) return;
+    const safeBoard = game.board || [];
     // Find the lowest empty row in this column
     let row = -1;
     for (let r = ROWS - 1; r >= 0; r--) {
-      if (game.board[r * COLS + col] === null) { row = r; break; }
+      if (safeBoard[r * COLS + col] === null) { row = r; break; }
     }
     if (row === -1) return; // column full
     const cellIndex = row * COLS + col;
@@ -148,7 +149,8 @@ export default function Connect4Card({
   const isMyTurn = game.turn === currentUserId;
   const iWon = game.winner === currentUserId;
   const theyWon = game.winner && game.winner !== currentUserId;
-  const winningCells = game.status === 'finished' && !game.isDraw ? getWinningCells(game.board) : null;
+  const board = game.board || [];
+  const winningCells = game.status === 'finished' && !game.isDraw && board.length > 0 ? getWinningCells(board) : null;
 
   const formatGameTime = (secs: number) => {
     const m = Math.floor(secs / 60);
@@ -235,7 +237,7 @@ export default function Connect4Card({
           height: 18,
         }}>
           {Array.from({ length: COLS }, (_, col) => {
-            const colFull = game.board[col] !== null;
+            const colFull = board[col] !== null;
             const isHovered = hoverCol === col && game.status === 'active' && isMyTurn && !acting && !colFull;
             return (
               <div key={col} style={{
@@ -262,7 +264,7 @@ export default function Connect4Card({
         }}
           onMouseLeave={() => setHoverCol(null)}
         >
-          {game.board.map((cell, i) => {
+          {board.map((cell, i) => {
             const row = Math.floor(i / COLS);
             const col = i % COLS;
             const isWin = winningCells?.includes(i);
@@ -271,12 +273,12 @@ export default function Connect4Card({
             let previewRow = -1;
             if (isHoverCol) {
               for (let r = ROWS - 1; r >= 0; r--) {
-                if (game.board[r * COLS + col] === null) { previewRow = r; break; }
+                if (board[r * COLS + col] === null) { previewRow = r; break; }
               }
             }
             const isPreview = isHoverCol && row === previewRow && cell === null;
             const cellColor = cell === game.inviterId ? '#e05c5c' : cell === game.inviteeId ? '#e8c84a' : null;
-            const colFull = (() => { for (let r = ROWS - 1; r >= 0; r--) { if (game.board[r * COLS + col] === null) return false; } return true; })();
+            const colFull = (() => { for (let r = ROWS - 1; r >= 0; r--) { if (board[r * COLS + col] === null) return false; } return true; })();
             return (
               <div
                 key={i}
@@ -310,6 +312,7 @@ export default function Connect4Card({
 }
 
 function getWinningCells(board: (string | null)[]): number[] | null {
+  if (!board || board.length === 0) return null;
   // Check horizontal
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c <= COLS - 4; c++) {
