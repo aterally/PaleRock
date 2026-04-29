@@ -33,6 +33,7 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
   const [disappearAfterMs, setDisappearAfterMs] = useState<number | null>(null);
   const [showDisappearPicker, setShowDisappearPicker] = useState(false);
   const [settingDisappear, setSettingDisappear] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const lastIdRef = useRef<string>('');
@@ -385,7 +386,7 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
             channelId={channelId}
             onProfileClick={handleProfileClick}
             onReply={(msg) => { setReplyTo({ id: msg.id, senderUsername: msg.senderUsername, content: msg.content }); inputRef.current?.focus(); }}
-            onDelete={deleteMessage}
+            onDelete={(msgId) => setConfirmDialog({ message: 'Delete this message?', onConfirm: () => deleteMessage(msgId) })}
             onLongPress={(msg, x, y) => setCtxMenu({ msg, x, y })}
           />
           )}
@@ -506,8 +507,8 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
             <>
               <hr />
               <button className="danger" onClick={() => {
-                if (confirm('Delete this message?')) deleteMessage(ctxMenu.msg.id);
                 setCtxMenu(null);
+                setConfirmDialog({ message: 'Delete this message?', onConfirm: () => deleteMessage(ctxMenu.msg.id) });
               }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
                 <span>Delete</span>
@@ -533,6 +534,14 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
             )}
           </div>
         </div>
+      )}
+      {/* Confirm dialog */}
+      {confirmDialog && (
+        <ConfirmDialog
+          message={confirmDialog.message}
+          onConfirm={() => { confirmDialog.onConfirm(); setConfirmDialog(null); }}
+          onCancel={() => setConfirmDialog(null)}
+        />
       )}
     </div>
   );
@@ -734,7 +743,7 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
                   {m.senderId === currentUserId && (
                     <button
                       title="Delete"
-                      onClick={() => { if (confirm('Delete this message?')) onDelete?.(m.id); }}
+                      onClick={() => onDelete?.(m.id)}
                       style={{ padding: '4px 6px', border: '1px solid rgba(237,66,69,0.35)', borderRadius: 4, background: 'rgba(237,66,69,0.12)', color: '#ff6b6b', cursor: 'pointer', display: 'flex', alignItems: 'center', lineHeight: 1 }}
                     >
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
@@ -819,6 +828,20 @@ const GAMES = [
   { id: 'tictactoe', name: 'Tic Tac Toe', icon: 'X', desc: '2-player · Classic 3x3 grid' },
   { id: 'connect4',  name: 'Connect 4',   icon: 'O', desc: '2-player · Drop pieces, align 4' },
 ];
+
+function ConfirmDialog({ message, onConfirm, onCancel }: { message: string; onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }} onClick={onCancel}>
+      <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '24px 28px', minWidth: 280, maxWidth: 360 }} onClick={e => e.stopPropagation()}>
+        <p style={{ fontSize: 14, color: 'var(--text-2)', fontFamily: 'var(--font-display)', marginBottom: 20, lineHeight: 1.5 }}>{message}</p>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={onCancel} style={{ padding: '7px 16px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 13, fontFamily: 'var(--font-display)' }}>Cancel</button>
+          <button onClick={onConfirm} style={{ padding: '7px 16px', border: 'none', borderRadius: 'var(--radius)', background: 'var(--danger)', color: '#fff', cursor: 'pointer', fontSize: 13, fontFamily: 'var(--font-display)', fontWeight: 700 }}>Delete</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const s: Record<string, React.CSSProperties> = {
   pane: {

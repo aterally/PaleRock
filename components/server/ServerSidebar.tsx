@@ -101,10 +101,16 @@ export default function ServerSidebar({
     }
   }
 
-  async function deleteCategory(categoryId: string) {
-    if (!confirm('Delete this category? Channels will become uncategorized.')) return;
+  const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
+
+  async function _deleteCategoryConfirmed(categoryId: string) {
     await fetch(`/api/servers/${server.id}/categories?categoryId=${categoryId}`, { method: 'DELETE' });
     setContextMenu(null); onServerUpdate();
+  }
+
+  async function deleteCategory(categoryId: string) {
+    setContextMenu(null);
+    setConfirmDialog({ message: 'Delete this category? Channels will become uncategorized.', onConfirm: () => _deleteCategoryConfirmed(categoryId) });
   }
 
   async function moveChannelToCategory(channelId: string, targetCategoryId: string | null) {
@@ -309,7 +315,7 @@ export default function ServerSidebar({
                   });
                   setContextMenu(null); onServerUpdate();
                 }}>
-                  {ch?.isPrivate ? '🔓 Make Public' : '🔒 Make Private'}
+                  {ch?.isPrivate ? 'Make Public' : 'Make Private'}
                 </button>
                 <button style={{ ...styles.contextItem, color: 'var(--danger)' }} onClick={() => deleteChannel(contextMenu.id)}>
                   Delete Channel
@@ -366,7 +372,7 @@ export default function ServerSidebar({
                 </div>
                 <div>
                   <span style={{ fontSize: 13, color: 'var(--text-2)', fontFamily: 'var(--font-display)', display: 'block' }}>
-                    {newChannelPrivate ? '🔒 Private' : '# Public'}
+                    {newChannelPrivate ? 'Private' : '# Public'}
                   </span>
                   <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-display)' }}>
                     {newChannelPrivate ? 'Only selected roles & members can view' : 'Visible to all server members'}
@@ -503,6 +509,18 @@ export default function ServerSidebar({
           </div>
           <p style={{ color: 'var(--text-3)', fontSize: 11, marginTop: 8 }}>Expires in 24 hours</p>
         </Modal>
+      )}
+      {/* Confirm dialog */}
+      {confirmDialog && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }} onClick={() => setConfirmDialog(null)}>
+          <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '24px 28px', minWidth: 280, maxWidth: 360 }} onClick={e => e.stopPropagation()}>
+            <p style={{ fontSize: 14, color: 'var(--text-2)', fontFamily: 'var(--font-display)', marginBottom: 20, lineHeight: 1.5 }}>{confirmDialog.message}</p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setConfirmDialog(null)} style={{ padding: '7px 16px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 13, fontFamily: 'var(--font-display)' }}>Cancel</button>
+              <button onClick={() => { confirmDialog.onConfirm(); setConfirmDialog(null); }} style={{ padding: '7px 16px', border: 'none', borderRadius: 'var(--radius)', background: 'var(--danger)', color: '#fff', cursor: 'pointer', fontSize: 13, fontFamily: 'var(--font-display)', fontWeight: 700 }}>Confirm</button>
+            </div>
+          </div>
+        </div>
       )}
     </aside>
   );
@@ -658,7 +676,7 @@ const IconFolder = () => (
 );
 
 const styles: Record<string, React.CSSProperties> = {
-  sidebar: { width: 280, minWidth: 280, height: '100dvh', background: 'var(--bg-1)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' },
+  sidebar: { width: 455, minWidth: 455, height: '100dvh', background: 'var(--bg-1)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' },
   header: { padding: '0 16px', height: 72, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 },
   backBtn: { color: 'var(--text-3)', padding: 4, borderRadius: 'var(--radius)', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'color var(--transition)', flexShrink: 0 },
   serverName: { flex: 1, fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 20, letterSpacing: '0.06em', color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },

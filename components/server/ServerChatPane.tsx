@@ -60,6 +60,7 @@ export default function ServerChatPane({
   }
 
   const [profilePopup, setProfilePopup] = useState<{ userId: string; username: string; x: number; y: number } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
   function openProfile(e: React.MouseEvent, authorId: string, authorName: string) {
     e.stopPropagation();
@@ -208,7 +209,7 @@ export default function ServerChatPane({
                     onClick={(e) => openProfile(e, group.authorId, group.author)}
                     title="View profile"
                   >
-                    <Avatar username={group.author} avatar={group.authorAvatar} size={42} />
+                    <Avatar username={group.author} avatar={group.authorAvatar} size={34} />
                   </div>
                   <div style={styles.groupContent}>
                     <div style={styles.groupHeader}>
@@ -268,7 +269,7 @@ export default function ServerChatPane({
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
                           </button>
                           {(msg.authorId === currentUser.id || isOwner || hasPermission('manageMessages')) && (
-                            <button title="Delete" onClick={() => { if (confirm('Delete?')) deleteMessage(msg.id); }}
+                            <button title="Delete" onClick={() => { setConfirmDialog({ message: 'Delete this message?', onConfirm: () => deleteMessage(msg.id) }); }}
                               style={{ padding: '4px 6px', border: '1px solid rgba(237,66,69,0.35)', borderRadius: 4, background: 'rgba(237,66,69,0.12)', color: '#ff6b6b', cursor: 'pointer', display: 'flex', alignItems: 'center', lineHeight: 1 }}>
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
                             </button>
@@ -304,8 +305,8 @@ export default function ServerChatPane({
             <>
               <hr />
               <button className="danger" onClick={() => {
-                if (confirm('Delete?')) deleteMessage(ctxMenu.msg.id);
                 setCtxMenu(null);
+                setConfirmDialog({ message: 'Delete this message?', onConfirm: () => deleteMessage(ctxMenu.msg.id) });
               }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
                 <span>Delete</span>
@@ -399,6 +400,18 @@ export default function ServerChatPane({
           </div>
         )}
       </div>
+      {/* Confirm dialog */}
+      {confirmDialog && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }} onClick={() => setConfirmDialog(null)}>
+          <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '24px 28px', minWidth: 280, maxWidth: 360 }} onClick={e => e.stopPropagation()}>
+            <p style={{ fontSize: 14, color: 'var(--text-2)', fontFamily: 'var(--font-display)', marginBottom: 20, lineHeight: 1.5 }}>{confirmDialog.message}</p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setConfirmDialog(null)} style={{ padding: '7px 16px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 13, fontFamily: 'var(--font-display)' }}>Cancel</button>
+              <button onClick={() => { confirmDialog.onConfirm(); setConfirmDialog(null); }} style={{ padding: '7px 16px', border: 'none', borderRadius: 'var(--radius)', background: 'var(--danger)', color: '#fff', cursor: 'pointer', fontSize: 13, fontFamily: 'var(--font-display)', fontWeight: 700 }}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -540,24 +553,24 @@ const styles: Record<string, React.CSSProperties> = {
   },
   messageGroup: {
     display: 'flex',
-    gap: 16,
-    marginBottom: 24,
+    gap: 10,
+    marginBottom: 10,
     alignItems: 'flex-start',
   },
   avatar: {
-    width: 40,
-    height: 40,
+    width: 34,
+    height: 34,
     borderRadius: 'var(--radius)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     fontFamily: 'var(--font-display)',
     fontWeight: 800,
-    fontSize: 15,
+    fontSize: 12,
     flexShrink: 0,
     letterSpacing: 1,
     userSelect: 'none',
-    marginTop: 2,
+    marginTop: 1,
   },
   groupContent: {
     flex: 1,
@@ -566,28 +579,29 @@ const styles: Record<string, React.CSSProperties> = {
   groupHeader: {
     display: 'flex',
     alignItems: 'baseline',
-    gap: 8,
-    marginBottom: 4,
+    gap: 7,
+    marginBottom: 1,
   },
   authorName: {
     fontFamily: 'var(--font-display)',
     fontWeight: 700,
-    fontSize: 17,
+    fontSize: 14,
     letterSpacing: '0.02em',
+    lineHeight: 1.4,
   },
   timestamp: {
-    fontSize: 13,
+    fontSize: 11,
     color: '#d4d4d4',
     letterSpacing: '0.04em',
     fontFamily: 'var(--font-display)',
   },
   messageText: {
-    fontSize: 22,
+    fontSize: 15,
     color: '#f5f5f5',
-    lineHeight: 1.65,
+    lineHeight: 1.45,
     wordBreak: 'break-word',
     whiteSpace: 'pre-wrap',
-    marginBottom: 2,
+    marginBottom: 1,
     fontFamily: 'var(--font-display)',
   },
   inputArea: {
