@@ -36,13 +36,44 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = useCallback((smooth = false) => {
-    bottomRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'instant' });
+    const el = listRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'instant' });
+  }, []);
+
+  // Pin to bottom whenever content height grows (handles async game card expansion)
+  const shouldStickRef = useRef(true);
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      if (shouldStickRef.current) {
+        el.scrollTop = el.scrollHeight;
+      }
+    });
+    // Observe the inner content div (first child of scroller)
+    const inner = el.firstElementChild;
+    if (inner) ro.observe(inner);
+    return () => ro.disconnect();
+  }, []);
+
+  // Track whether user has scrolled away from bottom
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    function onScroll() {
+      if (!el) return;
+      shouldStickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+    }
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
   }, []);
 
   useEffect(() => {
     setLoading(true);
     setMessages([]);
     lastIdRef.current = '';
+    shouldStickRef.current = true;
     fetch(`/api/channels/${channelId}/messages`)
       .then(r => r.json())
       .then(data => {
@@ -52,7 +83,8 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
           if (data.messages.length > 0) lastIdRef.current = data.messages[data.messages.length - 1].id;
         }
         setLoading(false);
-        setTimeout(() => scrollToBottom(false), 50);
+        // ResizeObserver will scroll to bottom as content renders
+        shouldStickRef.current = true;
       })
       .catch(() => setLoading(false));
   }, [channelId, scrollToBottom]);
@@ -65,9 +97,6 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
         .then(r => r.json())
         .then(data => {
           if (data.messages && data.messages.length > 0) {
-            const atBottom = listRef.current
-              ? listRef.current.scrollHeight - listRef.current.scrollTop - listRef.current.clientHeight < 80
-              : true;
             setMessages(prev => {
               const existingIds = new Set(prev.map(m => m.id));
               const newMsgs = data.messages.filter((m: Message) => !existingIds.has(m.id));
@@ -75,7 +104,7 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
               lastIdRef.current = newMsgs[newMsgs.length - 1].id;
               return [...prev, ...newMsgs];
             });
-            if (atBottom) setTimeout(() => scrollToBottom(true), 30);
+            // ResizeObserver handles scrolling if pinned to bottom
           }
         })
         .catch(() => {});
@@ -89,6 +118,7 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
     setLoadingMore(true);
     const before = messages[0].id;
     const prevHeight = listRef.current?.scrollHeight || 0;
+    shouldStickRef.current = false; // don't snap to bottom while loading history
     try {
       const r = await fetch(`/api/channels/${channelId}/messages?before=${before}`);
       const data = await r.json();
@@ -134,7 +164,7 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
             lastIdRef.current = newMsgs[newMsgs.length - 1].id;
             return [...prev, ...newMsgs];
           });
-          setTimeout(() => scrollToBottom(true), 30);
+          shouldStickRef.current = true; scrollToBottom(false);
         }
       } else {
         const data = await r.json();
@@ -161,7 +191,7 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
       if (r.ok && data.message) {
         setMessages(prev => prev.some(m => m.id === data.message.id) ? prev : [...prev, data.message]);
         lastIdRef.current = data.message.id;
-        setTimeout(() => scrollToBottom(true), 30);
+        shouldStickRef.current = true; scrollToBottom(false);
       }
     } finally { setSending(false); }
   }
@@ -689,6 +719,7 @@ const s: Record<string, React.CSSProperties> = {
   messageList: {
     display: 'flex',
     flexDirection: 'column',
+    justifyContent: 'flex-end',
     padding: '28px 40px',
     minHeight: '100%',
     boxSizing: 'border-box',
