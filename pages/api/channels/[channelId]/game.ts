@@ -124,6 +124,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!game.inviteeId.equals(meId)) return res.status(403).json({ error: 'Not the invitee' });
       if (game.status !== 'pending') return res.status(409).json({ error: 'Game is not pending' });
 
+    // ── expire (callable by either party once invite timeout has passed) ─────
+    if (action === 'expire') {
+      if (game.status !== 'pending') return res.status(200).json({ ok: true, status: game.status });
+      const elapsed = Date.now() - new Date(game.invitedAt).getTime();
+      if (elapsed < INVITE_TIMEOUT_MS) return res.status(409).json({ error: 'Invite has not expired yet' });
+      await db.collection('games').updateOne(
+        { _id: new ObjectId(gameId) },
+        { $set: { status: 'denied', finishedAt: new Date() }, $unset: { board: '', turn: '', startedAt: '' } }
+      );
+      await db.collection('messages').updateOne(
+        { _id: game.messageId },
+        { $set: { content: `__GAME__:${JSON.stringify({ gameId, type: game.type, status: 'denied' })}` } }
+      );
+      return res.status(200).json({ ok: true, status: 'denied' });
+    }
+
+    // ── accept / deny (invitee only) ─────────────────────────────────────────
+    if (action === 'accept' || action === 'deny') {
+      if (!game.inviteeId.equals(meId)) return res.status(403).json({ error: 'Not the invitee' });
+      if (game.status !== 'pending') return res.status(409).json({ error: 'Game is not pending' });
+
       const elapsed = Date.now() - new Date(game.invitedAt).getTime();
       if (elapsed > INVITE_TIMEOUT_MS) {
         await db.collection('games').updateOne(
