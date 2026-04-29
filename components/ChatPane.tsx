@@ -281,7 +281,7 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
         <div style={{ flex: 1 }}>
           <div style={s.headerName}>{otherUser?.username || '…'}</div>
           {dmLastSeenLabel ? (
-            <div style={{ fontSize: 11, color: dmIsOnline ? '#23a55a' : 'var(--text-3)', fontFamily: 'var(--font-display)', letterSpacing: '0.02em' }}>
+            <div style={{ fontSize: 14, color: dmIsOnline ? '#23a55a' : 'var(--text-3)', fontFamily: "'Times New Roman', Times, serif", letterSpacing: '0.02em', marginTop: 2 }}>
               {dmLastSeenLabel}
             </div>
           ) : otherUser?.bio ? (
@@ -527,9 +527,9 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
             <div style={{ marginTop: -22, marginBottom: 8 }}>
               <Avatar username={dmProfile.senderUsername} avatar={dmProfile.senderAvatar} size={44} />
             </div>
-            <div style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontWeight: 600, fontSize: 16, color: '#e0e0e0' }}>{dmProfile.senderUsername}</div>
+            <div style={{ fontFamily: "'Times New Roman', Times, serif", fontWeight: 600, fontSize: 16, color: '#e0e0e0' }}>{dmProfile.senderUsername}</div>
             {otherUser?.bio && dmProfile.senderId !== currentUser.id && (
-              <div style={{ fontSize: 12, color: '#555', marginTop: 6, lineHeight: 1.5, fontFamily: "'Inter', system-ui, sans-serif" }}>{otherUser.bio}</div>
+              <div style={{ fontSize: 12, color: '#555', marginTop: 6, lineHeight: 1.5, fontFamily: "'Times New Roman', Times, serif" }}>{otherUser.bio}</div>
             )}
           </div>
         </div>
@@ -683,7 +683,7 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
                     fontSize: 12, color: 'var(--text-3)', marginBottom: 2,
                     display: 'flex', alignItems: 'center', gap: 4,
                     justifyContent: isMe ? 'flex-end' : 'flex-start',
-                    fontFamily: "'Cormorant Garamond', Georgia, serif",
+                    fontFamily: "'Times New Roman', Times, serif",
                     fontStyle: 'italic',
                   }}>
                     <span style={{ opacity: 0.5 }}>↩</span>
@@ -700,7 +700,7 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
                   letterSpacing: '0.01em',
                   animation: 'fadeIn 0.12s ease',
                   color: isMe ? 'var(--text)' : 'var(--text-2)',
-                  fontFamily: "'Cormorant Garamond', Georgia, serif",
+                  fontFamily: "'Times New Roman', Times, serif",
                   fontWeight: 400,
                   textAlign: isMe ? 'right' : 'left',
                 }}>
@@ -710,7 +710,7 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
                 {m.disappearAt && (
                   <div style={{
                     fontSize: 12, color: '#7eb8f7', opacity: 0.9,
-                    fontFamily: "'Inter', system-ui, sans-serif",
+                    fontFamily: "'Times New Roman', Times, serif",
                     marginTop: 2,
                     textAlign: isMe ? 'right' : 'left',
                   }}>
@@ -831,7 +831,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   header: {
     padding: '0 32px',
-    height: 68,
+    height: 60,
     borderBottom: '1px solid var(--border)',
     display: 'flex',
     alignItems: 'center',
@@ -839,16 +839,16 @@ const s: Record<string, React.CSSProperties> = {
     flexShrink: 0,
   },
   headerName: {
-    fontFamily: "'Cormorant Garamond', Georgia, serif",
-    fontWeight: 500,
-    fontSize: 20,
+    fontFamily: "'Times New Roman', Times, serif",
+    fontWeight: 700,
+    fontSize: 18,
     color: '#ffffff',
     letterSpacing: '0.03em',
   },
   headerBio: {
-    fontSize: 11,
+    fontSize: 13,
     color: '#999',
-    fontFamily: "'Inter', system-ui, sans-serif",
+    fontFamily: "'Times New Roman', Times, serif",
     marginTop: 1,
   },
   scroller: {
@@ -879,7 +879,7 @@ const s: Record<string, React.CSSProperties> = {
     paddingTop: 80,
   },
   emptyName: {
-    fontFamily: "'Cormorant Garamond', Georgia, serif",
+    fontFamily: "'Times New Roman', Times, serif",
     fontWeight: 400,
     fontStyle: 'italic',
     fontSize: 20,
@@ -889,7 +889,7 @@ const s: Record<string, React.CSSProperties> = {
   emptyHint: {
     fontSize: 12,
     color: '#888888',
-    fontFamily: "'Inter', system-ui, sans-serif",
+    fontFamily: "'Times New Roman', Times, serif",
     fontWeight: 300,
     letterSpacing: '0.04em',
   },
@@ -901,7 +901,7 @@ const s: Record<string, React.CSSProperties> = {
     border: '1px solid #444444',
     borderRadius: 20,
     cursor: 'pointer',
-    fontFamily: "'Inter', system-ui, sans-serif",
+    fontFamily: "'Times New Roman', Times, serif",
     display: 'flex',
     alignItems: 'center',
     gap: 6,
@@ -921,7 +921,7 @@ const s: Record<string, React.CSSProperties> = {
   dateLabel: {
     fontSize: 12,
     color: '#d4d4d4',
-    fontFamily: "'Cormorant Garamond', Georgia, serif",
+    fontFamily: "'Times New Roman', Times, serif",
     fontWeight: 400,
     fontStyle: 'italic',
     letterSpacing: '0.08em',
@@ -930,14 +930,14 @@ const s: Record<string, React.CSSProperties> = {
   metaName: {
     fontSize: 13,
     color: '#ffffff',
-    fontFamily: "'Inter', system-ui, sans-serif",
+    fontFamily: "'Times New Roman', Times, serif",
     fontWeight: 500,
     letterSpacing: '0.02em',
   },
   metaTime: {
     fontSize: 12,
     color: '#d4d4d4',
-    fontFamily: "'Inter', system-ui, sans-serif",
+    fontFamily: "'Times New Roman', Times, serif",
     fontWeight: 300,
   },
   inputRow: {
@@ -960,8 +960,8 @@ const s: Record<string, React.CSSProperties> = {
     outline: 'none',
     fontSize: 17,
     lineHeight: 1.6,
-    fontFamily: "'Inter', system-ui, sans-serif",
-    fontWeight: 300,
+    fontFamily: "'Times New Roman', Times, serif",
+    fontWeight: 400,
     transition: 'border-color 0.15s',
     letterSpacing: '0.01em',
   },

@@ -274,7 +274,7 @@ function Board({ board, winningLine, onCell, mySymbol }: {
               alignItems: 'center',
               justifyContent: 'center',
               transition: 'background 0.1s, border-color 0.1s',
-              fontFamily: "'Cormorant Garamond', Georgia, serif",
+              fontFamily: "'Times New Roman', Times, serif",
             }}
           >
             {cell || (isEmpty && onCell ? <span style={{ color: '#444444', fontSize: 14 }}>·</span> : '')}
