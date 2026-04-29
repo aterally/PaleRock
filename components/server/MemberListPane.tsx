@@ -74,6 +74,7 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
 
   useEffect(() => {
     function close(e: MouseEvent) {
+      if (e.button !== 0) return; // ignore right-click mousedown
       const t = e.target as HTMLElement;
       if (!t.closest('[data-ctx]')) setCtxMenu(null);
       if (!t.closest('[data-profile]')) setProfile(null);

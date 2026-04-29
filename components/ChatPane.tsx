@@ -590,6 +590,8 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
   while (i < messages.length) {
     const msg = messages[i];
     const isMe = msg.senderId === currentUserId;
+    const displayName = isMe ? currentUsername : msg.senderUsername;
+    const displayAvatar = isMe ? (currentUserAvatar ?? null) : (msg.senderAvatar ?? null);
     const cluster: Message[] = [msg];
 
     while (
@@ -599,47 +601,30 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
     ) { i++; cluster.push(messages[i]); }
 
     nodes.push(
-      <div key={cluster[0].id} style={{
-        display: 'flex',
-        flexDirection: 'row',
-        justifyContent: isMe ? 'flex-end' : 'flex-start',
-        width: '100%',
-        marginBottom: 7,
-        gap: 8,
-      }}>
-        {/* Avatar — left for others */}
-        {!isMe && (
-          <span style={{ flexShrink: 0, alignSelf: 'flex-end', cursor: 'pointer' }}
-            onClick={(e) => onProfileClick?.(e, msg.senderId, msg.senderUsername, msg.senderAvatar)}>
-            <Avatar username={msg.senderUsername} avatar={msg.senderAvatar} size={34} />
-          </span>
-        )}
+      <div key={cluster[0].id} className="pr-message-group">
+        {/* Avatar — always on the left */}
+        <div
+          style={{ cursor: isMe ? 'default' : 'pointer', flexShrink: 0 }}
+          onClick={!isMe ? (e) => onProfileClick?.(e, msg.senderId, msg.senderUsername, msg.senderAvatar) : undefined}
+          title={isMe ? undefined : 'View profile'}
+        >
+          <Avatar username={displayName} avatar={displayAvatar} size={34} />
+        </div>
 
-        {/* Inner column: meta + messages */}
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: isMe ? 'flex-end' : 'flex-start',
-          maxWidth: '72%',
-          gap: 3,
-        }}>
-          {/* Meta row */}
-          <div style={{
-            display: 'flex',
-            flexDirection: isMe ? 'row-reverse' : 'row',
-            alignItems: 'center',
-            gap: 6,
-            marginBottom: 1,
-          }}>
+        {/* Content column: name + timestamp header, then messages */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Header row */}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 1 }}>
             <span
-              style={{ ...s.metaName, cursor: !isMe ? 'pointer' : 'default' }}
+              className="pr-message-author"
+              style={{ color: isMe ? 'var(--text)' : 'var(--text-2)', cursor: !isMe ? 'pointer' : 'default' }}
               onClick={!isMe ? (e) => onProfileClick?.(e, msg.senderId, msg.senderUsername, msg.senderAvatar) : undefined}
-            >{isMe ? 'You' : msg.senderUsername}</span>
-            <span style={s.metaTime}>{formatTime(cluster[cluster.length - 1].createdAt)}</span>
+            >{displayName}</span>
+            <span className="pr-message-timestamp">{formatTime(cluster[cluster.length - 1].createdAt)}</span>
           </div>
 
           {/* Messages */}
-          {cluster.map((m, idx) => {
+          {cluster.map((m) => {
             let lpTimer: ReturnType<typeof setTimeout> | null = null;
             function handleTouchStart(e: React.TouchEvent) {
               const touch = e.touches[0];
@@ -681,7 +666,13 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
             }
 
             return (
-              <div key={m.id} style={{ position: 'relative', width: '100%' }} className="msg-wrap"
+              <div key={m.id} className="msg-wrap" style={{ position: 'relative' }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  const mx = Math.min(e.clientX, window.innerWidth - 180);
+                  const my = Math.min(e.clientY, window.innerHeight - 120);
+                  onLongPress?.(m, mx, my);
+                }}
                 onTouchStart={handleTouchStart}
                 onTouchEnd={handleTouchEnd}
                 onTouchMove={handleTouchEnd}
@@ -691,45 +682,29 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
                   <div style={{
                     fontSize: 12, color: 'var(--text-3)', marginBottom: 2,
                     display: 'flex', alignItems: 'center', gap: 4,
-                    justifyContent: isMe ? 'flex-end' : 'flex-start',
-                    fontFamily: "'Times New Roman', Times, serif",
+                    fontFamily: "var(--font-display)",
                     fontStyle: 'italic',
                   }}>
                     <span style={{ opacity: 0.5 }}>↩</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-2)' }}>{m.replyTo.senderUsername}</span>
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160, opacity: 0.7 }}>{m.replyTo.content}</span>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200, opacity: 0.7 }}>{m.replyTo.content}</span>
                   </div>
                 )}
-                {/* Plain text — no bubble */}
-                <div style={{
-                  fontSize: 18,
-                  lineHeight: 1.5,
-                  wordBreak: 'break-word',
-                  whiteSpace: 'pre-wrap',
-                  letterSpacing: '0.01em',
-                  animation: 'fadeIn 0.12s ease',
-                  color: isMe ? 'var(--text)' : 'var(--text-2)',
-                  fontFamily: "'Times New Roman', Times, serif",
-                  fontWeight: 400,
-                  textAlign: isMe ? 'right' : 'left',
-                }}>
-                  {renderContent(m.content)}
-                </div>
-                {/* Disappear countdown */}
+                {/* Message text — matches server style exactly */}
+                <p className="pr-message-text">{renderContent(m.content)}</p>
+                {/* Disappear countdown — no emoji, plain text */}
                 {m.disappearAt && (
                   <div style={{
-                    fontSize: 12, color: '#7eb8f7', opacity: 0.9,
-                    fontFamily: "'Times New Roman', Times, serif",
-                    marginTop: 2,
-                    textAlign: isMe ? 'right' : 'left',
+                    fontSize: 11, color: 'var(--text-3)', opacity: 0.75,
+                    fontFamily: "var(--font-display)",
+                    marginTop: 1,
                   }}>
-                    ⏱ disappears {new Date(m.disappearAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    disappears {new Date(m.disappearAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
                   </div>
                 )}
                 {/* Hover action buttons */}
                 <div className="msg-actions" style={{
-                  position: 'absolute', top: 0,
-                  ...(isMe ? { left: -60 } : { right: -60 }),
+                  position: 'absolute', top: 0, right: 0,
                   display: 'flex', gap: 4, opacity: 0,
                   transition: 'opacity 0.1s',
                 }}>
@@ -754,13 +729,6 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
             );
           })}
         </div>
-
-        {/* Avatar on the right for own messages */}
-        {isMe && (
-          <span style={{ flexShrink: 0, alignSelf: 'flex-end' }}>
-            <Avatar username={currentUsername} avatar={currentUserAvatar ?? null} size={34} />
-          </span>
-        )}
       </div>
     );
     i++;
@@ -796,7 +764,7 @@ function renderContent(text: string): React.ReactNode {
 }
 
 function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
 }
 
 function formatDate(dateStr: string) {
@@ -883,7 +851,7 @@ const s: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'flex-end',
-    padding: '32px 48px',
+    padding: '28px 36px',
     minHeight: '100%',
     boxSizing: 'border-box',
   },
