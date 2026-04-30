@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { User } from '@/pages/app';
+import { Avatar } from '@/components/Sidebar';
 
 interface ProfilePaneProps {
   user: User;
@@ -291,8 +292,9 @@ export default function ProfilePane({ user, onUserUpdate }: ProfilePaneProps) {
       body: JSON.stringify({ avatar: JSON.stringify(pixels) }),
     });
     if (r.ok) {
+      const avatarStr = JSON.stringify(pixels);
       setAvatarPixels(pixels);
-      onUserUpdate({ ...user } as any);
+      onUserUpdate({ ...user, avatar: avatarStr } as any);
     }
     setShowAvatarEditor(false);
   }
@@ -304,7 +306,7 @@ export default function ProfilePane({ user, onUserUpdate }: ProfilePaneProps) {
       body: JSON.stringify({ avatar: null }),
     });
     setAvatarPixels(null);
-    onUserUpdate({ ...user } as any);
+    onUserUpdate({ ...user, avatar: null } as any);
   }
 
   async function savePassword(e: React.FormEvent) {
@@ -339,28 +341,7 @@ export default function ProfilePane({ user, onUserUpdate }: ProfilePaneProps) {
       <div style={styles.content}>
         <div style={styles.avatarSection}>
           <div style={{ position: 'relative', flexShrink: 0 }}>
-            {avatarPixels ? (
-              <canvas
-                key={JSON.stringify(avatarPixels)}
-                ref={el => {
-                  if (!el) return;
-                  const ctx = el.getContext('2d')!;
-                  ctx.clearRect(0, 0, 64, 64);
-                  for (let r = 0; r < 16; r++) for (let c = 0; c < 16; c++) {
-                    if (avatarPixels[r][c] !== 'transparent') {
-                      ctx.fillStyle = avatarPixels[r][c];
-                      ctx.fillRect(c * 4, r * 4, 4, 4);
-                    }
-                  }
-                }}
-                width={64} height={64}
-                style={{ borderRadius: 12, imageRendering: 'pixelated', display: 'block', border: '2px solid var(--border)' }}
-              />
-            ) : (
-              <div style={{ width: 64, height: 64, borderRadius: 12, background: `hsl(${hue},10%,18%)`, color: `hsl(${hue},20%,75%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 22, border: '2px solid var(--border)' }}>
-                {user.username.slice(0, 2).toUpperCase()}
-              </div>
-            )}
+            <Avatar username={user.username} avatar={(user as any).avatar} size={64} />
           </div>
           <div>
             <div style={styles.displayName}>{user.username}</div>

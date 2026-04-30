@@ -317,8 +317,6 @@ select option {
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  position: relative;
   animation: sidebarIn 0.22s cubic-bezier(0.4,0,0.2,1) forwards;
 }
 
@@ -754,8 +752,6 @@ select option {
   border-left: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  position: relative;
   animation: slideInRight 0.22s cubic-bezier(0.4,0,0.2,1) forwards;
 }
 
