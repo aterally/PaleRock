@@ -3,6 +3,7 @@ import type { User, Channel } from '@/pages/app';
 import { Avatar } from '@/components/Sidebar';
 import TicTacToeCard from '@/components/games/TicTacToeCard';
 import Connect4Card from '@/components/games/Connect4Card';
+import ChatCallOverlay, { IncomingCallBanner } from '@/components/ChatCallOverlay';
 
 interface Message {
   id: string;
@@ -34,6 +35,10 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
   const [showDisappearPicker, setShowDisappearPicker] = useState(false);
   const [settingDisappear, setSettingDisappear] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
+  // Chat call state
+  const [callOpen, setCallOpen] = useState(false);
+  const [incomingCall, setIncomingCall] = useState<{ callerUsername: string; callerAvatar?: string | null } | null>(null);
+  const callPollRef = useRef<NodeJS.Timeout | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const lastIdRef = useRef<string>('');
@@ -250,6 +255,49 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
     setDmProfile({ senderId, senderUsername, senderAvatar, x, y });
   }
 
+  // Poll for incoming calls (when not already in a call)
+  useEffect(() => {
+    if (callOpen) return;
+    async function checkIncoming() {
+      try {
+        const r = await fetch(`/api/channels/${channelId}/chat-call`);
+        if (!r.ok) return;
+        const data = await r.json();
+        const s = data.session;
+        if (s && s.status === 'ringing' && s.calleeId === currentUser.id) {
+          setIncomingCall({ callerUsername: s.callerUsername, callerAvatar: null });
+        } else {
+          setIncomingCall(null);
+        }
+      } catch (_) {}
+    }
+    checkIncoming();
+    callPollRef.current = setInterval(checkIncoming, 1500);
+    return () => { if (callPollRef.current) clearInterval(callPollRef.current); };
+  }, [channelId, currentUser.id, callOpen]);
+
+  async function startCall() {
+    setCallOpen(true);
+    setIncomingCall(null);
+  }
+
+  async function acceptIncomingCall() {
+    await fetch(`/api/channels/${channelId}/chat-call`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'accept' }),
+    });
+    setIncomingCall(null);
+    setCallOpen(true);
+  }
+
+  async function rejectIncomingCall() {
+    await fetch(`/api/channels/${channelId}/chat-call`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'reject' }),
+    });
+    setIncomingCall(null);
+  }
+
   // Compute online status for DM header
   const dmIsOnline = otherUser?.lastOnline && (Date.now() - new Date(otherUser.lastOnline).getTime()) < 5 * 60 * 1000;
   const dmLastSeenLabel = (() => {
@@ -289,6 +337,33 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
             <div style={s.headerBio}>{otherUser.bio}</div>
           ) : null}
         </div>
+        {/* Chat Call button */}
+        <button
+          onClick={startCall}
+          title="Start a Chat Call"
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '5px 10px',
+            background: 'transparent',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-md)',
+            color: 'var(--text-3)',
+            cursor: 'pointer', fontSize: 13,
+            fontFamily: 'var(--font-display)',
+            letterSpacing: '0.04em',
+            transition: 'all 0.15s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = '#63b3ed'; e.currentTarget.style.color = '#63b3ed'; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-3)'; }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="6" width="20" height="12" rx="2"/>
+            <line x1="6" y1="10" x2="6" y2="10" strokeWidth="2.5"/><line x1="10" y1="10" x2="10" y2="10" strokeWidth="2.5"/>
+            <line x1="14" y1="10" x2="14" y2="10" strokeWidth="2.5"/><line x1="18" y1="10" x2="18" y2="10" strokeWidth="2.5"/>
+            <line x1="6" y1="14" x2="18" y2="14" strokeWidth="2.5" strokeLinecap="round"/>
+          </svg>
+          Call
+        </button>
         {/* Disappearing messages button */}
         <div style={{ position: 'relative', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
           <button
@@ -541,6 +616,29 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
           message={confirmDialog.message}
           onConfirm={() => { confirmDialog.onConfirm(); setConfirmDialog(null); }}
           onCancel={() => setConfirmDialog(null)}
+        />
+      )}
+      {/* Incoming call banner */}
+      {incomingCall && !callOpen && (
+        <IncomingCallBanner
+          channelId={channelId}
+          callerUsername={incomingCall.callerUsername}
+          callerAvatar={incomingCall.callerAvatar}
+          onAccept={acceptIncomingCall}
+          onReject={rejectIncomingCall}
+        />
+      )}
+      {/* Chat call overlay */}
+      {callOpen && otherUser && (
+        <ChatCallOverlay
+          channelId={channelId}
+          currentUserId={currentUser.id}
+          currentUsername={currentUser.username}
+          currentAvatar={currentUser.avatar}
+          otherUserId={otherUser.id}
+          otherUsername={otherUser.username}
+          otherAvatar={otherUser.avatar}
+          onClose={() => setCallOpen(false)}
         />
       )}
     </div>
