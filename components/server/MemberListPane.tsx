@@ -29,6 +29,7 @@ interface Props {
   server: ServerData;
   currentUserId: string;
   isOwner: boolean;
+  isAdmin?: boolean;
   hasPermission: (perm: string) => boolean;
   onServerUpdate: () => void;
 }
@@ -36,7 +37,7 @@ interface Props {
 interface CtxMenu { x: number; y: number; userId: string; username: string; }
 interface ProfileCard { userId: string; x: number; y: number; }
 
-export default function MemberListPane({ server, currentUserId, isOwner, hasPermission, onServerUpdate }: Props) {
+export default function MemberListPane({ server, currentUserId, isOwner, isAdmin, hasPermission, onServerUpdate }: Props) {
   const [ctxMenu, setCtxMenu] = useState<CtxMenu | null>(null);
   const [profile, setProfile] = useState<ProfileCard | null>(null);
   const [panelMemberId, setPanelMemberId] = useState<string | null>(null);
@@ -349,6 +350,7 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
             server={server}
             currentUserId={currentUserId}
             isOwner={isOwner}
+            isAdmin={isAdmin}
             hasPermission={hasPermission}
             onClose={() => setPanelMemberId(null)}
             onServerUpdate={onServerUpdate}

@@ -64,6 +64,7 @@ export interface CurrentUser {
   email: string;
   bio: string;
   registeredAt: string;
+  isAdmin?: boolean;
 }
 
 export default function ServerPage() {
@@ -145,6 +146,7 @@ export default function ServerPage() {
           activeChannelId={channelId as string || null}
           currentUser={user}
           isOwner={isOwner}
+          isAdmin={user.isAdmin}
           hasPermission={hasPermission}
           onChannelSelect={navigateToChannel}
           onOpenSettings={() => setShowSettings(true)}
@@ -173,6 +175,7 @@ export default function ServerPage() {
             server={server}
             currentUserId={user.id}
             isOwner={isOwner}
+            isAdmin={user.isAdmin}
             hasPermission={hasPermission}
             onServerUpdate={fetchServer}
           />

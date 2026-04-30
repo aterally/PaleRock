@@ -20,6 +20,7 @@ interface Props {
   server: ServerData;
   currentUserId: string;
   isOwner: boolean;
+  isAdmin?: boolean;
   hasPermission: (perm: string) => boolean;
   onClose: () => void;
   onServerUpdate: () => void;
@@ -29,8 +30,8 @@ interface Props {
 }
 
 export default function MemberPanel({
-  member, server, currentUserId, isOwner, hasPermission,
-  onClose, onServerUpdate, blockedUsers, onBlock, onUnblock
+  member, server, currentUserId, isOwner, isAdmin,
+  hasPermission, onClose, onServerUpdate, blockedUsers, onBlock, onUnblock
 }: Props) {
   const [tab, setTab] = useState<'info' | 'roles' | 'actions'>('info');
   const [muteMinutes, setMuteMinutes] = useState('10');
@@ -114,7 +115,25 @@ export default function MemberPanel({
     });
   }
 
-  async function toggleRole(roleId: string, has: boolean) {
+  async function adminSiteBanUser() {
+    if (!confirm(`SITE-BAN ${member.username}? They will not be able to log in anywhere.`)) return;
+    await doAction('adminBan', async () => {
+      await fetch(`/api/admin/users?userId=${member.userId}&action=ban`, { method: 'POST' });
+      onServerUpdate();
+    });
+  }
+
+  async function adminDeleteUser() {
+    if (!confirm(`Permanently DELETE user "${member.username}"? This cannot be undone.`)) return;
+    if (!confirm(`Are you absolutely sure? All data for this user will be gone.`)) return;
+    await doAction('adminDelete', async () => {
+      await fetch(`/api/admin/users?userId=${member.userId}&action=delete`, { method: 'POST' });
+      onClose();
+      onServerUpdate();
+    });
+  }
+
+
     setLoadingRoles(prev => new Set(prev).add(roleId));
     await fetch(`/api/servers/${server.id}/members/${member.userId}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
@@ -123,6 +142,9 @@ export default function MemberPanel({
     setLoadingRoles(prev => { const s = new Set(prev); s.delete(roleId); return s; });
     onServerUpdate();
   }
+
+  // Detect desktop vs mobile: desktop = viewport width >= 768px
+  const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 768;
 
   return (
     <>
@@ -135,8 +157,18 @@ export default function MemberPanel({
         onClick={onClose}
       />
 
-      {/* Panel — slides up from bottom */}
-      <div className="member-panel" style={{
+      {/* Panel — centered popup on desktop, slides up from bottom on mobile */}
+      <div className="member-panel" style={isDesktop ? {
+        position: 'fixed',
+        top: '50%', left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: 480, maxWidth: 'calc(100vw - 32px)',
+        background: 'var(--bg-2)', border: '1px solid var(--border)',
+        borderRadius: 16,
+        zIndex: 9991, maxHeight: '85dvh', display: 'flex', flexDirection: 'column',
+        animation: 'memberPopupIn 0.22s cubic-bezier(0.34,1.1,0.64,1) forwards',
+        boxShadow: '0 24px 80px rgba(0,0,0,0.7)',
+      } : {
         position: 'fixed', bottom: 0, left: 0, right: 0,
         background: 'var(--bg-2)', borderTop: '1px solid var(--border)',
         borderRadius: '20px 20px 0 0',
@@ -149,6 +181,10 @@ export default function MemberPanel({
             from { transform: translateY(100%); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
           }
+          @keyframes memberPopupIn {
+            from { transform: translate(-50%, -48%) scale(0.96); opacity: 0; }
+            to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+          }
           .member-panel-tab { padding: 8px 16px; border: none; background: transparent; cursor: pointer; font-family: var(--font-display); font-weight: 700; font-size: 11px; letter-spacing: 0.1em; color: var(--text-3); border-bottom: 2px solid transparent; transition: all 0.15s; }
           .member-panel-tab.active { color: var(--text); border-bottom-color: var(--text); }
           .member-panel-action { display: flex; align-items: center; gap: 12px; padding: 14px 20px; border: none; background: transparent; cursor: pointer; font-family: var(--font-display); font-size: 14px; font-weight: 600; width: 100%; text-align: left; border-radius: 8px; transition: background 0.12s; }
@@ -157,13 +193,15 @@ export default function MemberPanel({
           .role-toggle-btn { padding: 4px 12px; border: none; border-radius: 4px; cursor: pointer; font-family: var(--font-display); font-weight: 700; font-size: 11px; transition: all 0.12s; }
         `}</style>
 
-        {/* Drag handle */}
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px' }}>
-          <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--bg-3)' }} />
-        </div>
+        {/* Drag handle — only on mobile */}
+        {!isDesktop && (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px' }}>
+            <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--bg-3)' }} />
+          </div>
+        )}
 
         {/* Header: avatar + name */}
-        <div style={{ padding: '12px 20px 0', display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div style={{ padding: isDesktop ? '20px 20px 0' : '12px 20px 0', display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ position: 'relative', flexShrink: 0 }}>
             <Avatar username={member.username} avatar={member.avatar} size={52} />
             <span style={{
@@ -337,6 +375,25 @@ export default function MemberPanel({
               )}
               {isMemberOwner && !isMe && (
                 <div style={{ fontSize: 13, color: 'var(--text-3)', padding: '12px 0' }}>The server owner cannot be moderated.</div>
+              )}
+
+              {/* ADMIN ACTIONS */}
+              {isAdmin && !isMe && (
+                <>
+                  <div style={{ height: 1, background: 'var(--border)', margin: '12px 0 8px' }} />
+                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#ff3b30', fontFamily: 'var(--font-display)', padding: '0 20px 6px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    ADMIN TOOLS
+                  </div>
+                  <button className="member-panel-action" style={{ color: '#ff3b30' }} onClick={adminSiteBanUser} disabled={loadingAction === 'adminBan'}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+                    {loadingAction === 'adminBan' ? 'Banning...' : 'Site-Ban User'}
+                  </button>
+                  <button className="member-panel-action" style={{ color: '#ff3b30' }} onClick={adminDeleteUser} disabled={loadingAction === 'adminDelete'}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                    {loadingAction === 'adminDelete' ? 'Deleting...' : 'Delete User Account'}
+                  </button>
+                </>
               )}
             </div>
           )}

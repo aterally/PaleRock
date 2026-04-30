@@ -8,6 +8,7 @@ interface Props {
   activeChannelId: string | null;
   currentUser: CurrentUser;
   isOwner: boolean;
+  isAdmin?: boolean;
   hasPermission: (perm: string) => boolean;
   onChannelSelect: (id: string) => void;
   onOpenSettings: () => void;
@@ -15,11 +16,18 @@ interface Props {
 }
 
 export default function ServerSidebar({
-  server, activeChannelId, currentUser, isOwner, hasPermission,
+  server, activeChannelId, currentUser, isOwner, isAdmin, hasPermission,
   onChannelSelect, onOpenSettings, onServerUpdate
 }: Props) {
   const router = useRouter();
   const [showCreateChannel, setShowCreateChannel] = useState(false);
+
+  async function adminDeleteServer() {
+    if (!confirm(`[ADMIN] Delete server "${server.name}" and all its data? This cannot be undone.`)) return;
+    if (!confirm(`Are you absolutely sure? All channels and messages will be gone.`)) return;
+    const r = await fetch(`/api/admin/servers?serverId=${server.id}&action=delete`, { method: 'POST' });
+    if (r.ok) router.replace('/app');
+  }
   const [createChannelStep, setCreateChannelStep] = useState<1 | 2>(1);
   const [showCreateCategory, setShowCreateCategory] = useState(false);
   const [newChannelName, setNewChannelName] = useState('');
@@ -187,6 +195,16 @@ export default function ServerSidebar({
           <IconBack />
         </button>
         <div className="pr-server-name">{server.name}</div>
+        {isAdmin && (
+          <button
+            onClick={adminDeleteServer}
+            title="[Admin] Delete Server"
+            style={{ background: 'rgba(255,59,48,0.12)', border: '1px solid rgba(255,59,48,0.3)', color: '#ff3b30', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontSize: 10, fontFamily: 'var(--font-display)', fontWeight: 700, letterSpacing: '0.06em', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4 }}
+          >
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>
+            DEL
+          </button>
+        )}
         {(isOwner || hasPermission('manageServer')) && (
           <button onClick={onOpenSettings} className="pr-settings-btn" title="Server Settings">
             <IconSettings />
