@@ -32,7 +32,7 @@ interface Props {
 export default function MemberPanel({
   member, server, currentUserId, isOwner, isAdmin,
   hasPermission, onClose, onServerUpdate, blockedUsers, onBlock, onUnblock
-}: Props) {
+}: Props): JSX.Element {
   const [tab, setTab] = useState<'info' | 'roles' | 'actions'>('info');
   const [muteMinutes, setMuteMinutes] = useState('10');
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
