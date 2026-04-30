@@ -42,6 +42,12 @@ export default function ChatCallOverlay({
   const stoppedRef = useRef(false);
   const onCloseRef = useRef(onClose);
   useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+  // Only end the call on null/ended after we've seen a live session at least once
+  const sessionConfirmedRef = useRef(false);
+  // Require consecutive misses before accepting the call as truly over —
+  // guards against a single transient null from a cold-start resetting in-memory state
+  const missCountRef = useRef(0);
+  const MISS_THRESHOLD = 3;
 
   // ─── Core poll — called manually; schedules itself when done ──────────────
   async function doPoll() {
@@ -53,14 +59,24 @@ export default function ChatCallOverlay({
       const s: CallSession | null = data.session;
 
       if (!s || s.status === 'ended') {
-        setStatus(prev => {
-          // Only move to ended if we actually had a live call — don't flash "ended" on an already-gone session
-          if (prev === 'active' || prev === 'ringing') return 'ended';
-          return prev;
-        });
-        stopAndClose();
+        // Only treat this as "call over" if:
+        // 1. We've confirmed the session was live at some point (guards against pre-init nulls)
+        // 2. We've seen this consistently for MISS_THRESHOLD polls (guards against transient server glitches)
+        if (sessionConfirmedRef.current) {
+          missCountRef.current += 1;
+          if (missCountRef.current >= MISS_THRESHOLD) {
+            if (s?.status === 'ended') {
+              setStatus('ended');
+            }
+            stopAndClose();
+          }
+        }
         return;
       }
+
+      // We have a live session — reset miss counter and mark confirmed
+      missCountRef.current = 0;
+      sessionConfirmedRef.current = true;
 
       setStatus(s.status);
       setIsCallee(s.calleeId === currentUserId);
@@ -95,6 +111,7 @@ export default function ChatCallOverlay({
     async function init() {
       if (alreadyAccepted) {
         // Callee already accepted via the banner — session is active, just poll once then loop
+        sessionConfirmedRef.current = true;
         await doPoll();
         return;
       }
@@ -106,6 +123,7 @@ export default function ChatCallOverlay({
           const s: CallSession | null = data.session;
           if (s && (s.status === 'ringing' || s.status === 'active')) {
             // A live session already exists — surface it, don't create a second one
+            sessionConfirmedRef.current = true;
             setStatus(s.status);
             setIsCallee(s.calleeId === currentUserId);
             if (!stoppedRef.current) pollTimerRef.current = setTimeout(doPoll, 600);

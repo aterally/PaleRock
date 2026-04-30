@@ -53,8 +53,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Clean up stale ended calls (> 10s) and stale ringing (> 30s)
     if (session) {
       const age = Date.now() - session.startedAt;
-      if (session.status === 'ended' && age > 10000) { calls.delete(channelId); session = undefined; }
-      else if (session.status === 'ringing' && age > 30000) { calls.delete(channelId); session = undefined; }
+      if (session.status === 'ended' && age > 30000) { calls.delete(channelId); session = undefined; }
+      else if (session.status === 'ringing' && age > 60000) { calls.delete(channelId); session = undefined; }
     }
     return res.status(200).json({ session: session || null });
   }
