@@ -34,13 +34,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const token = await signToken({ userId: user._id.toString(), username: user.username });
 
-    res.setHeader('Set-Cookie', serialize('palerock_token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 30 * 24 * 60 * 60,
-      path: '/',
-    }));
+    const cookies = [
+      serialize('palerock_token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 30 * 24 * 60 * 60,
+        path: '/',
+      }),
+    ];
+
+    // If this is the admin account, also set the admin session cookie
+    if (user.isAdmin) {
+      cookies.push(serialize('palerock_admin', 'authenticated', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 30 * 24 * 60 * 60,
+        path: '/',
+      }));
+    }
+
+    res.setHeader('Set-Cookie', cookies);
 
     return res.status(200).json({
       user: {
@@ -49,6 +64,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         email: user.email,
         bio: user.bio || '',
         registeredAt: user.registeredAt,
+        isAdmin: user.isAdmin || false,
       }
     });
   } catch (err) {

@@ -5,7 +5,7 @@ import Head from 'next/head';
 type Tab = 'overview' | 'users' | 'servers' | 'messages';
 
 interface Stats { userCount: number; serverCount: number; messageCount: number; }
-interface AdminUser { id: string; username: string; email: string; registeredAt: string; lastOnline: string | null; banned: boolean; }
+interface AdminUser { id: string; username: string; email: string; registeredAt: string; lastOnline: string | null; banned: boolean; isAdmin?: boolean; }
 interface AdminServer { id: string; name: string; ownerId: string; memberCount: number; createdAt: string; }
 interface AdminMessage { id: string; content: string; authorId: string; authorUsername: string; channelId: string; createdAt: string; }
 
@@ -112,7 +112,7 @@ export default function AdminPage() {
   }
 
   useEffect(() => {
-    // Check if already admin-authenticated
+    // Check if already admin-authenticated (either admin cookie or admin user JWT)
     fetch('/api/admin/overview').then(r => {
       if (r.ok) { r.json().then(d => { setAuthed(true); setStats(d.stats); setUsers(d.users || []); setServers(d.servers || []); }); }
     });
@@ -254,10 +254,12 @@ export default function AdminPage() {
                     <tbody>
                       {users.slice(0, 10).map(u => (
                         <tr key={u.id}>
-                          <td style={{ color: u.banned ? '#ff3b30' : '#e0e0e0', fontWeight: 700 }}>{u.username}{u.banned ? ' 🚫' : ''}</td>
+                          <td style={{ color: u.banned ? '#ff3b30' : u.isAdmin ? '#ffa000' : '#e0e0e0', fontWeight: 700 }}>
+                            {u.username}{u.banned ? ' 🚫' : ''}{u.isAdmin ? ' 🛡' : ''}
+                          </td>
                           <td style={{ color: '#888' }}>{u.email}</td>
                           <td style={{ color: '#666' }}>{fmtDate(u.registeredAt)}</td>
-                          <td><span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, background: u.banned ? 'rgba(255,59,48,0.1)' : 'rgba(35,165,90,0.1)', color: u.banned ? '#ff3b30' : '#23a55a', fontWeight: 700 }}>{u.banned ? 'BANNED' : 'ACTIVE'}</span></td>
+                          <td><span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, background: u.isAdmin ? 'rgba(255,160,0,0.1)' : u.banned ? 'rgba(255,59,48,0.1)' : 'rgba(35,165,90,0.1)', color: u.isAdmin ? '#ffa000' : u.banned ? '#ff3b30' : '#23a55a', fontWeight: 700 }}>{u.isAdmin ? 'ADMIN' : u.banned ? 'BANNED' : 'ACTIVE'}</span></td>
                         </tr>
                       ))}
                     </tbody>
@@ -307,20 +309,26 @@ export default function AdminPage() {
                   <tbody>
                     {filteredUsers.map(u => (
                       <tr key={u.id}>
-                        <td style={{ color: u.banned ? '#ff3b30' : '#e0e0e0', fontWeight: 700 }}>{u.username}</td>
+                        <td style={{ color: u.banned ? '#ff3b30' : u.isAdmin ? '#ffa000' : '#e0e0e0', fontWeight: 700 }}>
+                          {u.username}{u.isAdmin ? ' 🛡' : ''}
+                        </td>
                         <td style={{ color: '#888' }}>{u.email}</td>
                         <td style={{ color: '#666' }}>{fmtDate(u.registeredAt)}</td>
                         <td style={{ color: '#666' }}>{fmtDate(u.lastOnline)}</td>
-                        <td><span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, background: u.banned ? 'rgba(255,59,48,0.1)' : 'rgba(35,165,90,0.1)', color: u.banned ? '#ff3b30' : '#23a55a', fontWeight: 700 }}>{u.banned ? 'BANNED' : 'ACTIVE'}</span></td>
+                        <td><span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, background: u.isAdmin ? 'rgba(255,160,0,0.1)' : u.banned ? 'rgba(255,59,48,0.1)' : 'rgba(35,165,90,0.1)', color: u.isAdmin ? '#ffa000' : u.banned ? '#ff3b30' : '#23a55a', fontWeight: 700 }}>{u.isAdmin ? 'ADMIN' : u.banned ? 'BANNED' : 'ACTIVE'}</span></td>
                         <td>
-                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                            {u.banned ? (
-                              <button className="adm-action" style={{ background: 'rgba(35,165,90,0.1)', color: '#23a55a' }} onClick={() => unbanUser(u.id)}>Unban</button>
-                            ) : (
-                              <button className="adm-action" style={{ background: 'rgba(255,160,0,0.1)', color: '#ffa000' }} onClick={() => banUser(u.id)}>Ban</button>
-                            )}
-                            <button className="adm-action" style={{ background: 'rgba(255,59,48,0.1)', color: '#ff3b30' }} onClick={() => deleteUser(u.id, u.username)}>Delete</button>
-                          </div>
+                          {u.isAdmin ? (
+                            <span style={{ fontSize: 11, color: '#555', fontFamily: 'Space Mono' }}>Protected</span>
+                          ) : (
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                              {u.banned ? (
+                                <button className="adm-action" style={{ background: 'rgba(35,165,90,0.1)', color: '#23a55a' }} onClick={() => unbanUser(u.id)}>Unban</button>
+                              ) : (
+                                <button className="adm-action" style={{ background: 'rgba(255,160,0,0.1)', color: '#ffa000' }} onClick={() => banUser(u.id)}>Ban</button>
+                              )}
+                              <button className="adm-action" style={{ background: 'rgba(255,59,48,0.1)', color: '#ff3b30' }} onClick={() => deleteUser(u.id, u.username)}>Delete</button>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     ))}

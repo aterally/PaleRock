@@ -40,6 +40,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         lastOnline: user.lastOnline ? user.lastOnline.toISOString() : null,
         avatar: user.avatar || null,
         pronouns: user.pronouns || '',
+        isAdmin: user.isAdmin || false,
       }
     });
   } catch (err) {

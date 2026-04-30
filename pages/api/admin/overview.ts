@@ -27,6 +27,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       registeredAt: u.registeredAt,
       lastOnline: u.lastOnline,
       banned: u.siteBanned || false,
+      isAdmin: u.isAdmin || false,
     })),
     servers: servers.map(s => ({
       id: s._id.toString(),

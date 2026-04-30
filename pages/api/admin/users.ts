@@ -22,6 +22,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         registeredAt: u.registeredAt,
         lastOnline: u.lastOnline,
         banned: u.siteBanned || false,
+        isAdmin: u.isAdmin || false,
       }))
     });
   }
@@ -31,6 +32,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // POST /api/admin/users?userId=X&action=ban|unban|delete
   if (req.method === 'POST') {
+    // Protect the built-in admin account
+    const targetUser = await db.collection('users').findOne({ _id: targetId });
+    if (targetUser?.isAdmin) {
+      return res.status(403).json({ error: 'Cannot modify the built-in admin account' });
+    }
+
     if (action === 'ban') {
       await db.collection('users').updateOne({ _id: targetId }, { $set: { siteBanned: true } });
       return res.status(200).json({ success: true });

@@ -1,4 +1,5 @@
 import { MongoClient, Db } from 'mongodb';
+import bcrypt from 'bcryptjs';
 
 interface MongoConnection {
   client: MongoClient;
@@ -38,6 +39,32 @@ export async function connectToDatabase(): Promise<MongoConnection> {
     await db.collection('channels').createIndex({ members: 1 });
   } catch (_) {
     // Indexes already exist — fine
+  }
+
+  // Seed the built-in admin account (idempotent)
+  try {
+    const existing = await db.collection('users').findOne({ username: 'admin' });
+    if (!existing) {
+      const hashedPassword = await bcrypt.hash('admin', 12);
+      await db.collection('users').insertOne({
+        username: 'admin',
+        email: 'admin@palerock.local',
+        password: hashedPassword,
+        bio: 'Site administrator',
+        registeredAt: new Date(),
+        updatedAt: new Date(),
+        avatar: null,
+        status: 'online',
+        blockedUsers: [],
+        settings: {},
+        isAdmin: true,
+      });
+    } else if (!existing.isAdmin) {
+      // Ensure existing admin account has the isAdmin flag
+      await db.collection('users').updateOne({ username: 'admin' }, { $set: { isAdmin: true } });
+    }
+  } catch (_) {
+    // Non-fatal — admin account may already exist
   }
 
   cached = { client, db };

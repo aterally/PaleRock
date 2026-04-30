@@ -27,6 +27,7 @@ export interface User {
   avatar?: string | null;
   registeredAt: string;
   status?: string;
+  isAdmin?: boolean;
 }
 
 export interface Channel {

@@ -155,9 +155,23 @@ export default function Sidebar({
           <Avatar username={user.username} avatar={(user as any).avatar} size={32} />
           <div style={styles.userInfo}>
             <span style={styles.userName}>{user.username}</span>
-            <span style={styles.userStatus}>online</span>
+            {(user as any).isAdmin && (
+              <span style={{ fontSize: 10, color: '#ff3b30', fontFamily: 'var(--font-display)', fontWeight: 700, letterSpacing: '0.08em' }}>ADMIN</span>
+            )}
+            {!(user as any).isAdmin && <span style={styles.userStatus}>online</span>}
           </div>
         </button>
+        {(user as any).isAdmin && (
+          <button
+            onClick={() => router.push('/admin')}
+            style={{ ...styles.logoutBtn, color: '#ff3b30' }}
+            title="Admin Panel"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </button>
+        )}
         <button onClick={onLogout} style={styles.logoutBtn} title="Sign out">
           <IconLogout />
         </button>
