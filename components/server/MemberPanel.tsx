@@ -134,6 +134,7 @@ export default function MemberPanel({
   }
 
 
+  async function toggleRole(roleId: string, has: boolean) {
     setLoadingRoles(prev => new Set(prev).add(roleId));
     await fetch(`/api/servers/${server.id}/members/${member.userId}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
