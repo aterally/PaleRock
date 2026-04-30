@@ -200,11 +200,6 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
             View / Manage Member
           </button>
           <div className="pr-ctx-divider" />
-            <button className="pr-member-ctx-item" onClick={() => { setCtxMenu(null); setShowRoleModal(ctxMenu.userId); }}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-              Manage Roles
-            </button>
-          )}
           {canMute && (() => {
             const ctxMember = ctxMenu ? server.members.find(m => m.userId === ctxMenu.userId) : null;
             const ctxIsMuted = ctxMember?.mutedUntil && new Date(ctxMember.mutedUntil).getTime() > Date.now();
