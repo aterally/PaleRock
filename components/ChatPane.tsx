@@ -38,7 +38,6 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
   // Chat call state
   const [callOpen, setCallOpen] = useState(false);
   const [callAlreadyAccepted, setCallAlreadyAccepted] = useState(false);
-  const [incomingCall, setIncomingCall] = useState<{ callerUsername: string; callerAvatar?: string | null } | null>(null);
   const callPollRef = useRef<NodeJS.Timeout | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -256,55 +255,55 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
     setDmProfile({ senderId, senderUsername, senderAvatar, x, y });
   }
 
-  // Poll for incoming calls (when not already in a call)
-  // Uses recursive setTimeout so fetches never overlap
-  useEffect(() => {
-    if (callOpen) return;
-    let cancelled = false;
-    async function checkIncoming() {
-      if (cancelled) return;
-      try {
-        const r = await fetch(`/api/channels/${channelId}/chat-call`);
-        if (!r.ok) return;
-        const data = await r.json();
-        const s = data.session;
-        if (s && s.status === 'ringing' && s.calleeId === currentUser.id) {
-          setIncomingCall({ callerUsername: s.callerUsername, callerAvatar: null });
-        } else {
-          setIncomingCall(null);
-        }
-      } catch (_) {}
-      if (!cancelled) callPollRef.current = setTimeout(checkIncoming, 1200);
-    }
-    checkIncoming();
-    return () => {
-      cancelled = true;
-      if (callPollRef.current) { clearTimeout(callPollRef.current); callPollRef.current = null; }
-    };
-  }, [channelId, currentUser.id, callOpen]);
+  // (Incoming calls are now shown as __CALL__ message cards in chat, no separate polling needed)
 
-  async function startCall() {
-    setCallAlreadyAccepted(false); // caller flow — overlay will initiate
-    setCallOpen(true);
-    setIncomingCall(null);
+  async function sendCallInvite() {
+    try {
+      const r = await fetch(`/api/channels/${channelId}/chat-call`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'send-invite' }),
+      });
+      if (!r.ok) {
+        const data = await r.json();
+        alert(data.error || 'Failed to start call');
+        return;
+      }
+      // Trigger an immediate poll so the call message appears in chat
+      const after = lastIdRef.current;
+      const pr = await fetch(`/api/channels/${channelId}/poll${after ? `?after=${after}` : ''}`);
+      const pdata = await pr.json();
+      if (pdata.messages && pdata.messages.length > 0) {
+        setMessages(prev => {
+          const existingIds = new Set(prev.map((m: Message) => m.id));
+          const newMsgs = pdata.messages.filter((m: Message) => !existingIds.has(m.id));
+          if (newMsgs.length === 0) return prev;
+          lastIdRef.current = newMsgs[newMsgs.length - 1].id;
+          return [...prev, ...newMsgs];
+        });
+        shouldStickRef.current = true; scrollToBottom(false);
+      }
+      // Open the overlay for the caller (already ringing)
+      setCallAlreadyAccepted(false);
+      setCallOpen(true);
+    } catch (_) {
+      alert('Failed to start call');
+    }
   }
 
-  async function acceptIncomingCall() {
+  async function acceptCallFromCard() {
     await fetch(`/api/channels/${channelId}/chat-call`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'accept' }),
     });
-    setIncomingCall(null);
-    setCallAlreadyAccepted(true); // callee flow — session already accepted, skip re-initiating
+    setCallAlreadyAccepted(true);
     setCallOpen(true);
   }
 
-  async function rejectIncomingCall() {
+  async function rejectCallFromCard() {
     await fetch(`/api/channels/${channelId}/chat-call`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'reject' }),
     });
-    setIncomingCall(null);
   }
 
   // Compute online status for DM header
@@ -348,7 +347,7 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
         </div>
         {/* Chat Call button */}
         <button
-          onClick={startCall}
+          onClick={sendCallInvite}
           title="Start a Chat Call"
           style={{
             display: 'flex', alignItems: 'center', gap: 6,
@@ -472,6 +471,8 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
             onReply={(msg) => { setReplyTo({ id: msg.id, senderUsername: msg.senderUsername, content: msg.content }); inputRef.current?.focus(); }}
             onDelete={(msgId) => setConfirmDialog({ message: 'Delete this message?', onConfirm: () => deleteMessage(msgId) })}
             onLongPress={(msg, x, y) => setCtxMenu({ msg, x, y })}
+            onAcceptCall={acceptCallFromCard}
+            onRejectCall={rejectCallFromCard}
           />
           )}
           <div ref={bottomRef} />
@@ -627,15 +628,6 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
           onCancel={() => setConfirmDialog(null)}
         />
       )}
-      {/* Incoming call banner */}
-      {incomingCall && !callOpen && (
-        <IncomingCallBanner
-          callerUsername={incomingCall.callerUsername}
-          callerAvatar={incomingCall.callerAvatar}
-          onAccept={acceptIncomingCall}
-          onReject={rejectIncomingCall}
-        />
-      )}
       {/* Chat call overlay */}
       {callOpen && otherUser && (
         <ChatCallOverlay
@@ -654,7 +646,7 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
   );
 }
 
-function MessageList({ messages, currentUserId, currentUsername, currentUserAvatar, otherUsername, channelId, onProfileClick, onReply, onDelete, onLongPress }: {
+function MessageList({ messages, currentUserId, currentUsername, currentUserAvatar, otherUsername, channelId, onProfileClick, onReply, onDelete, onLongPress, onAcceptCall, onRejectCall }: {
   messages: Message[];
   currentUserId: string;
   currentUsername: string;
@@ -665,6 +657,8 @@ function MessageList({ messages, currentUserId, currentUsername, currentUserAvat
   onReply?: (msg: Message) => void;
   onDelete?: (msgId: string) => void;
   onLongPress?: (msg: Message, x: number, y: number) => void;
+  onAcceptCall?: () => void;
+  onRejectCall?: () => void;
 }) {
   const byDate: { date: string; messages: Message[] }[] = [];
   messages.forEach(msg => {
@@ -745,6 +739,88 @@ function renderClusters(messages: Message[], currentUserId: string, currentUsern
             }
             function handleTouchEnd() {
               if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; }
+            }
+
+            // Call invite message — render call card
+            if (m.content.startsWith('__CALL__:')) {
+              let callInfo: { callerUsername: string; callerId: string; status: string } | null = null;
+              try { callInfo = JSON.parse(m.content.slice('__CALL__:'.length)); } catch {}
+              if (callInfo) {
+                const isCallee = callInfo.callerId !== currentUserId;
+                const isPending = callInfo.status === 'ringing';
+                return (
+                  <div key={m.id} style={{ display: 'flex', justifyContent: isCallee ? 'flex-start' : 'flex-end', padding: '6px 16px' }}>
+                    <div style={{
+                      background: 'var(--bg-2)', border: '1px solid var(--border)',
+                      borderRadius: 16, padding: '14px 18px', minWidth: 240, maxWidth: 320,
+                      display: 'flex', flexDirection: 'column', gap: 12,
+                      boxShadow: isPending ? '0 4px 24px rgba(99,179,237,0.12)' : 'none',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{
+                          width: 36, height: 36, borderRadius: '50%',
+                          background: isPending ? 'rgba(99,179,237,0.15)' : 'var(--bg-3)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          flexShrink: 0,
+                        }}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={isPending ? '#63b3ed' : 'var(--text-3)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="2" y="6" width="20" height="12" rx="2"/>
+                            <line x1="6" y1="10" x2="6" y2="10" strokeWidth="2.5"/><line x1="10" y1="10" x2="10" y2="10" strokeWidth="2.5"/>
+                            <line x1="14" y1="10" x2="14" y2="10" strokeWidth="2.5"/><line x1="18" y1="10" x2="18" y2="10" strokeWidth="2.5"/>
+                            <line x1="6" y1="14" x2="18" y2="14" strokeWidth="2.5" strokeLinecap="round"/>
+                          </svg>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--font-display)', letterSpacing: '0.02em' }}>
+                            {callInfo.status === 'ringing' ? 'Chat Call' :
+                             callInfo.status === 'active' ? 'Call in progress' :
+                             callInfo.status === 'rejected' ? 'Call declined' : 'Call ended'}
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--text-3)', letterSpacing: '0.06em', marginTop: 2 }}>
+                            {callInfo.status === 'ringing' && isCallee ? `${callInfo.callerUsername} is calling…` :
+                             callInfo.status === 'ringing' && !isCallee ? 'Waiting for response…' :
+                             callInfo.status === 'active' ? 'In progress' :
+                             callInfo.status === 'rejected' ? 'Declined' : 'Ended'}
+                          </div>
+                        </div>
+                      </div>
+                      {isPending && isCallee && (
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button
+                            onClick={() => { if (onAcceptCall) onAcceptCall(); }}
+                            style={{
+                              flex: 1, padding: '8px 0', borderRadius: 10, border: 'none',
+                              background: '#23a55a', color: '#fff', cursor: 'pointer',
+                              fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 700,
+                              letterSpacing: '0.06em', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                            }}
+                          >✓ Accept</button>
+                          <button
+                            onClick={() => { if (onRejectCall) onRejectCall(); }}
+                            style={{
+                              flex: 1, padding: '8px 0', borderRadius: 10, border: 'none',
+                              background: 'rgba(237,66,69,0.15)', color: '#ed4245', cursor: 'pointer',
+                              fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 700,
+                              letterSpacing: '0.06em',
+                            }}
+                          >✕ Decline</button>
+                        </div>
+                      )}
+                      {isPending && !isCallee && (
+                        <button
+                          onClick={() => { if (onRejectCall) onRejectCall(); }}
+                          style={{
+                            padding: '8px 0', borderRadius: 10, border: 'none',
+                            background: 'rgba(237,66,69,0.12)', color: '#ed4245', cursor: 'pointer',
+                            fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 700,
+                            letterSpacing: '0.06em',
+                          }}
+                        >Cancel Call</button>
+                      )}
+                    </div>
+                  </div>
+                );
+              }
             }
 
             // Game message — render card

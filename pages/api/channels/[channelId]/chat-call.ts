@@ -63,6 +63,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'POST') {
     const { action, text } = req.body || {};
 
+    // ── send-invite — creates a __CALL__ message in chat (like a game invite) ──
+    if (action === 'send-invite') {
+      const existing = calls.get(channelId);
+      if (existing && existing.status !== 'ended') {
+        return res.status(409).json({ error: 'A call is already in progress in this channel' });
+      }
+      const now = new Date();
+      // Create ringing session
+      calls.set(channelId, {
+        callerId: meId.toString(),
+        callerUsername: me.username,
+        calleeId: otherMemberId?.toString() || '',
+        status: 'ringing',
+        startedAt: Date.now(),
+        typing: {},
+      });
+      // Insert a __CALL__ message so both sides see it in chat
+      const msgResult = await db.collection('messages').insertOne({
+        channelId: new ObjectId(channelId),
+        senderId: meId,
+        content: `__CALL__:${JSON.stringify({ callerUsername: me.username, callerId: meId.toString(), status: 'ringing' })}`,
+        createdAt: now,
+        editedAt: null,
+        replyTo: null,
+        isCallMessage: true,
+      });
+      await db.collection('channels').updateOne(
+        { _id: new ObjectId(channelId) },
+        { $set: { updatedAt: now, lastCallMessageId: msgResult.insertedId } }
+      );
+      return res.status(200).json({ ok: true, messageId: msgResult.insertedId.toString() });
+    }
+
     if (action === 'initiate') {
       const existing = calls.get(channelId);
       // If a live session already exists, return it as-is so the caller's overlay
@@ -88,6 +121,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (session.calleeId !== meId.toString()) return res.status(403).json({ error: 'Not the callee' });
       session.status = 'active';
       session.startedAt = Date.now(); // reset timer from when call became active
+      // Update the __CALL__ message to reflect active status
+      const ch = await db.collection('channels').findOne({ _id: new ObjectId(channelId) });
+      if (ch?.lastCallMessageId) {
+        await db.collection('messages').updateOne(
+          { _id: ch.lastCallMessageId },
+          { $set: { content: `__CALL__:${JSON.stringify({ callerUsername: session.callerUsername, callerId: session.callerId, status: 'active' })}` } }
+        );
+      }
       return res.status(200).json({ ok: true });
     }
 
@@ -95,6 +136,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const session = calls.get(channelId);
       if (!session) return res.status(404).json({ error: 'No active call' });
       session.status = 'ended';
+      // Update the __CALL__ message to reflect ended/rejected status
+      const ch = await db.collection('channels').findOne({ _id: new ObjectId(channelId) });
+      if (ch?.lastCallMessageId) {
+        const endStatus = action === 'reject' ? 'rejected' : 'ended';
+        await db.collection('messages').updateOne(
+          { _id: ch.lastCallMessageId },
+          { $set: { content: `__CALL__:${JSON.stringify({ callerUsername: session.callerUsername, callerId: session.callerId, status: endStatus })}` } }
+        );
+      }
       return res.status(200).json({ ok: true });
     }
 
