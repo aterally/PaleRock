@@ -28,6 +28,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
 
+    if (user.siteBanned) {
+      return res.status(403).json({ error: 'Your account has been banned from PaleRock.' });
+    }
+
     const token = await signToken({ userId: user._id.toString(), username: user.username });
 
     res.setHeader('Set-Cookie', serialize('palerock_token', token, {

@@ -1244,3 +1244,83 @@ select option {
   border-color: #3a3a3a !important;
   color: #aaaaaa !important;
 }
+
+/* ── Member Panel (long-press slide-up) ─────────────────────────────────────── */
+@keyframes memberPanelIn {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.member-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg-2);
+  border-top: 1px solid var(--border);
+  border-radius: 20px 20px 0 0;
+  z-index: 9991;
+  max-height: 90dvh;
+  display: flex;
+  flex-direction: column;
+  animation: memberPanelIn 0.28s cubic-bezier(0.34,1.1,0.64,1) forwards;
+  box-shadow: 0 -8px 40px rgba(0,0,0,0.6);
+  /* Also show on desktop when triggered by right-click panel option */
+}
+
+.member-panel-tab {
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--text-3);
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+}
+.member-panel-tab.active {
+  color: var(--text);
+  border-bottom-color: var(--text);
+}
+
+.member-panel-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  width: 100%;
+  text-align: left;
+  border-radius: 8px;
+  transition: background 0.12s;
+}
+.member-panel-action:hover { background: var(--bg-3); }
+.member-panel-action:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* On desktop, make panel a fixed-width centered modal */
+@media (min-width: 640px) {
+  .member-panel {
+    left: 50%;
+    right: auto;
+    bottom: auto;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 480px;
+    max-height: 80dvh;
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    animation: memberPanelDesktopIn 0.22s cubic-bezier(0.34,1.1,0.64,1) forwards;
+  }
+  @keyframes memberPanelDesktopIn {
+    from { transform: translate(-50%, -48%); opacity: 0; }
+    to { transform: translate(-50%, -50%); opacity: 1; }
+  }
+}

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { ServerData, ServerRole } from '@/pages/servers/[serverId]/[channelId]';
 import { Avatar } from '@/components/Sidebar';
+import MemberPanel from '@/components/server/MemberPanel';
 
 // Long-press hook for touch devices
 function useLongPress(callback: (e: React.TouchEvent) => void, ms = 500) {
@@ -37,6 +38,7 @@ interface ProfileCard { userId: string; x: number; y: number; }
 export default function MemberListPane({ server, currentUserId, isOwner, hasPermission, onServerUpdate }: Props) {
   const [ctxMenu, setCtxMenu] = useState<CtxMenu | null>(null);
   const [profile, setProfile] = useState<ProfileCard | null>(null);
+  const [panelMemberId, setPanelMemberId] = useState<string | null>(null);
   const [muteModal, setMuteModal] = useState<{ userId: string; username: string } | null>(null);
   const [muteDuration, setMuteDuration] = useState('10');
   const [showRoleModal, setShowRoleModal] = useState<string | null>(null);
@@ -108,12 +110,14 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
   }
 
   function openCtxTouch(m: typeof allMembers[0]) {
-    if (m.userId === currentUserId) return;
+    if (m.userId === currentUserId) {
+      // Still show panel for yourself (info-only)
+      setPanelMemberId(m.userId);
+      return;
+    }
     setProfile(null);
-    // On touch: anchor to bottom-center of screen for easy thumb reach
-    const x = Math.max(8, (window.innerWidth - 220) / 2);
-    const y = Math.max(40, window.innerHeight - 360);
-    setCtxMenu({ x, y, userId: m.userId, username: m.username });
+    setCtxMenu(null);
+    setPanelMemberId(m.userId);
   }
 
   function openProfile(e: React.MouseEvent, m: typeof allMembers[0]) {
@@ -190,7 +194,12 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
       {ctxMenu && (
         <div data-ctx="1" className="pr-member-ctx" style={{ top: ctxMenu.y, left: ctxMenu.x }}>
           <div className="pr-member-ctx-header">{ctxMenu.username}</div>
-          {canManageRoles && (
+          {/* Open full slide panel */}
+          <button className="pr-member-ctx-item" onClick={() => { setCtxMenu(null); setPanelMemberId(ctxMenu.userId); }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+            View / Manage Member
+          </button>
+          <div className="pr-ctx-divider" />
             <button className="pr-member-ctx-item" onClick={() => { setCtxMenu(null); setShowRoleModal(ctxMenu.userId); }}>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
               Manage Roles
@@ -329,6 +338,26 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
       {showRoleModal && (
         <RoleAssignModal server={server} userId={showRoleModal} onClose={() => setShowRoleModal(null)} onUpdate={onServerUpdate} />
       )}
+
+      {/* Slide-up member panel (long-press on touch) */}
+      {panelMemberId && (() => {
+        const panelMember = server.members.find(m => m.userId === panelMemberId);
+        if (!panelMember) return null;
+        return (
+          <MemberPanel
+            member={panelMember}
+            server={server}
+            currentUserId={currentUserId}
+            isOwner={isOwner}
+            hasPermission={hasPermission}
+            onClose={() => setPanelMemberId(null)}
+            onServerUpdate={onServerUpdate}
+            blockedUsers={blockedUsers}
+            onBlock={blockUser}
+            onUnblock={unblockUser}
+          />
+        );
+      })()}
     </aside>
   );
 }
