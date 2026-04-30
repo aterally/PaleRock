@@ -1,4 +1,5 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/router';
 import type { ServerData, ServerChannel, ServerCategory, CurrentUser } from '@/pages/servers/[serverId]/[channelId]';
 
@@ -303,8 +304,8 @@ export default function ServerSidebar({
         )}
       </div>
 
-      {/* Context menu */}
-      {contextMenu && (
+      {/* Context menu — portaled so it renders above all layout overflow */}
+      {contextMenu && typeof window !== 'undefined' && createPortal(
         <div className="pr-context-menu" style={{ top: contextMenu.y, left: contextMenu.x }}>
           {contextMenu.type === 'channel' && (() => {
             const ch = server.channels.find(c => c.id === contextMenu.id);
@@ -330,7 +331,8 @@ export default function ServerSidebar({
               Delete Category
             </button>
           )}
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Create channel modal — 2 steps */}
@@ -478,8 +480,8 @@ export default function ServerSidebar({
         </Modal>
       )}
 
-      {/* Confirm dialog */}
-      {confirmDialog && (
+      {/* Confirm dialog — portaled */}
+      {confirmDialog && typeof window !== 'undefined' && createPortal(
         <div className="pr-overlay" onClick={() => setConfirmDialog(null)}>
           <div className="pr-modal" style={{ minWidth: 280, maxWidth: 360 }} onClick={e => e.stopPropagation()}>
             <p style={{ fontSize: 14, color: 'var(--text-2)', fontFamily: 'var(--font-display)', marginBottom: 20, lineHeight: 1.5 }}>{confirmDialog.message}</p>
@@ -488,7 +490,8 @@ export default function ServerSidebar({
               <button onClick={() => { confirmDialog.onConfirm(); setConfirmDialog(null); }} className="pr-confirm-btn" style={{ background: 'var(--danger)', color: '#fff' }}>Confirm</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </aside>
   );
@@ -617,7 +620,10 @@ function ChannelItem({ channel, active, onClick, onContextMenu, canManage, isDra
 }
 
 function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
-  return (
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  if (!mounted) return null;
+  return createPortal(
     <div className="pr-overlay" onClick={onClose}>
       <div className="pr-modal" onClick={e => e.stopPropagation()}>
         <div className="pr-modal-header">
@@ -626,7 +632,8 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

@@ -38,6 +38,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         registeredAt: user.registeredAt,
         status: user.status || 'online',
         lastOnline: user.lastOnline ? user.lastOnline.toISOString() : null,
+        avatar: user.avatar || null,
+        pronouns: user.pronouns || '',
       }
     });
   } catch (err) {

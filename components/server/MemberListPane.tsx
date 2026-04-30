@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import type { ServerData, ServerRole } from '@/pages/servers/[serverId]/[channelId]';
 import { Avatar } from '@/components/Sidebar';
 import MemberPanel from '@/components/server/MemberPanel';
@@ -190,8 +191,8 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
         ))}
       </div>
 
-      {/* Right-click context menu */}
-      {ctxMenu && (
+      {/* Right-click context menu — portaled so it escapes overflow:hidden */}
+      {ctxMenu && typeof window !== 'undefined' && createPortal(
         <div data-ctx="1" className="pr-member-ctx" style={{ top: ctxMenu.y, left: ctxMenu.x }}>
           <div className="pr-member-ctx-header">{ctxMenu.username}</div>
           {/* Open full slide panel */}
@@ -240,11 +241,12 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
               Block User
             </button>
           )}
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* Profile popup */}
-      {profile && profileMember && (() => {
+      {/* Profile popup — portaled */}
+      {profile && profileMember && typeof window !== 'undefined' && (() => {
         const hue = profileMember.username.split('').reduce((a:number,c:string)=>a+c.charCodeAt(0),0)%360;
         const isMuted = profileMember.mutedUntil && new Date(profileMember.mutedUntil).getTime() > Date.now();
         const mutedTimeLabel = isMuted ? (() => {
@@ -254,7 +256,7 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
           if (totalMins < 1440) return `MUTED ${Math.ceil(totalMins / 60)}h`;
           return `MUTED ${Math.ceil(totalMins / 1440)}d`;
         })() : null;
-        return (
+        const card = (
           <div
             data-profile="1"
             className="pr-profile-card"
@@ -307,10 +309,11 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
             </div>
           </div>
         );
+        return createPortal(card, document.body);
       })()}
 
       {/* Mute modal */}
-      {muteModal && (
+      {muteModal && typeof window !== 'undefined' && createPortal(
         <div style={st.overlay} onClick={() => setMuteModal(null)}>
           <div style={st.modal} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', fontFamily: 'var(--font-display)', marginBottom: 4 }}>Mute {muteModal.username}</div>
@@ -327,18 +330,20 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
               <button style={{ padding: '7px 14px', border: 'none', borderRadius: 6, background: 'var(--text)', color: 'var(--bg)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }} onClick={() => mute(muteModal.userId)}>Mute</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {showRoleModal && (
-        <RoleAssignModal server={server} userId={showRoleModal} onClose={() => setShowRoleModal(null)} onUpdate={onServerUpdate} />
+      {showRoleModal && typeof window !== 'undefined' && createPortal(
+        <RoleAssignModal server={server} userId={showRoleModal} onClose={() => setShowRoleModal(null)} onUpdate={onServerUpdate} />,
+        document.body
       )}
 
       {/* Slide-up member panel (long-press on touch) */}
-      {panelMemberId && (() => {
+      {panelMemberId && typeof window !== 'undefined' && (() => {
         const panelMember = server.members.find(m => m.userId === panelMemberId);
         if (!panelMember) return null;
-        return (
+        return createPortal(
           <MemberPanel
             member={panelMember}
             server={server}
@@ -350,7 +355,8 @@ export default function MemberListPane({ server, currentUserId, isOwner, hasPerm
             blockedUsers={blockedUsers}
             onBlock={blockUser}
             onUnblock={unblockUser}
-          />
+          />,
+          document.body
         );
       })()}
     </aside>
