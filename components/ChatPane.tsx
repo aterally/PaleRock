@@ -677,14 +677,14 @@ function MessageList({ messages, currentUserId, currentUsername, currentUserAvat
             <span style={s.dateLabel}>{formatDate(group.date)}</span>
             <div style={s.dateLine} />
           </div>
-          {renderClusters(group.messages, currentUserId, currentUsername, currentUserAvatar, otherUsername, channelId, onProfileClick, onReply, onDelete, onLongPress)}
+          {renderClusters(group.messages, currentUserId, currentUsername, currentUserAvatar, otherUsername, channelId, onProfileClick, onReply, onDelete, onLongPress, onAcceptCall, onRejectCall)}
         </div>
       ))}
     </>
   );
 }
 
-function renderClusters(messages: Message[], currentUserId: string, currentUsername: string, currentUserAvatar: string | null | undefined, otherUsername: string, channelId: string, onProfileClick?: (e: React.MouseEvent, senderId: string, senderUsername: string, senderAvatar?: string | null) => void, onReply?: (msg: Message) => void, onDelete?: (msgId: string) => void, onLongPress?: (msg: Message, x: number, y: number) => void) {
+function renderClusters(messages: Message[], currentUserId: string, currentUsername: string, currentUserAvatar: string | null | undefined, otherUsername: string, channelId: string, onProfileClick?: (e: React.MouseEvent, senderId: string, senderUsername: string, senderAvatar?: string | null) => void, onReply?: (msg: Message) => void, onDelete?: (msgId: string) => void, onLongPress?: (msg: Message, x: number, y: number) => void, onAcceptCall?: () => void, onRejectCall?: () => void) {
   const nodes: React.ReactNode[] = [];
   let i = 0;
 
