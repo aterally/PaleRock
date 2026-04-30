@@ -257,9 +257,12 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
   }
 
   // Poll for incoming calls (when not already in a call)
+  // Uses recursive setTimeout so fetches never overlap
   useEffect(() => {
     if (callOpen) return;
+    let cancelled = false;
     async function checkIncoming() {
+      if (cancelled) return;
       try {
         const r = await fetch(`/api/channels/${channelId}/chat-call`);
         if (!r.ok) return;
@@ -271,10 +274,13 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
           setIncomingCall(null);
         }
       } catch (_) {}
+      if (!cancelled) callPollRef.current = setTimeout(checkIncoming, 1200);
     }
     checkIncoming();
-    callPollRef.current = setInterval(checkIncoming, 1500);
-    return () => { if (callPollRef.current) clearInterval(callPollRef.current); };
+    return () => {
+      cancelled = true;
+      if (callPollRef.current) { clearTimeout(callPollRef.current); callPollRef.current = null; }
+    };
   }, [channelId, currentUser.id, callOpen]);
 
   async function startCall() {
@@ -624,7 +630,6 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
       {/* Incoming call banner */}
       {incomingCall && !callOpen && (
         <IncomingCallBanner
-          channelId={channelId}
           callerUsername={incomingCall.callerUsername}
           callerAvatar={incomingCall.callerAvatar}
           onAccept={acceptIncomingCall}
