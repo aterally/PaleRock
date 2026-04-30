@@ -21,27 +21,35 @@ interface Props {
   otherUsername: string;
   otherAvatar?: string | null;
   otherUserId: string;
+  /** Pass true when the callee already accepted via the banner (skip re-initiating) */
+  alreadyAccepted?: boolean;
   onClose: () => void;
 }
 
 export default function ChatCallOverlay({
   channelId, currentUserId, currentUsername, currentAvatar,
-  otherUsername, otherAvatar, otherUserId, onClose,
+  otherUsername, otherAvatar, otherUserId, alreadyAccepted, onClose,
 }: Props): JSX.Element {
   const [session, setSession] = useState<CallSession | null>(null);
   const [myText, setMyText] = useState('');
   const [theirText, setTheirText] = useState('');
   const [elapsed, setElapsed] = useState(0);
-  const [status, setStatus] = useState<'ringing' | 'active' | 'ended' | 'idle'>('idle');
+  // Use null as "not yet known" to avoid flashing the ringing UI before first poll
+  const [status, setStatus] = useState<'ringing' | 'active' | 'ended' | 'idle' | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const typingRef = useRef<NodeJS.Timeout | null>(null);
   const elapsedRef = useRef<NodeJS.Timeout | null>(null);
+  // Guard to prevent the close callback firing more than once
+  const closedRef = useRef(false);
+  // Stable close wrapper so poll useCallback doesn't go stale
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
 
   const isCallee = session?.calleeId === currentUserId;
   const isCaller = session?.callerId === currentUserId;
 
-  // Poll for session state + remote typing
+  // ─── Poll for session state + remote typing ───────────────────────────────
   const poll = useCallback(async () => {
     try {
       const r = await fetch(`/api/channels/${channelId}/chat-call`);
@@ -59,19 +67,55 @@ export default function ChatCallOverlay({
         if (theirTyping) setTheirText(theirTyping.text);
       }
       if (s.status === 'ended') {
-        setTimeout(() => { onClose(); }, 1800);
+        // Stop polling immediately so we don't keep re-fetching after the call ends
+        if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+        if (!closedRef.current) {
+          closedRef.current = true;
+          setTimeout(() => onCloseRef.current(), 1800);
+        }
       }
     } catch (_) {}
-  }, [channelId, otherUserId, onClose]);
+  }, [channelId, otherUserId]);
 
-  // Start polling
+  // ─── Init: either initiate a new call, or just start polling if we're the callee ───
   useEffect(() => {
-    poll();
-    pollRef.current = setInterval(poll, 500);
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [poll]);
+    async function init() {
+      if (alreadyAccepted) {
+        // Callee already accepted in the banner — just poll, the session is active
+        await poll();
+      } else {
+        // Check first to avoid creating a duplicate session if both people tap call
+        try {
+          const r = await fetch(`/api/channels/${channelId}/chat-call`);
+          if (r.ok) {
+            const data = await r.json();
+            const s: CallSession | null = data.session;
+            if (s && (s.status === 'ringing' || s.status === 'active')) {
+              // A session already exists — if we're the callee, just surface it; don't re-initiate
+              setSession(s);
+              setStatus(s.status);
+              return;
+            }
+          }
+        } catch (_) {}
+        // No live session — initiate
+        await fetch(`/api/channels/${channelId}/chat-call`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'initiate' }),
+        });
+        await poll();
+      }
+    }
+    init();
+    // Start the polling interval AFTER init finishes
+    pollRef.current = setInterval(poll, 600);
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Elapsed timer when active
+  // ─── Elapsed timer only while active ─────────────────────────────────────
   useEffect(() => {
     if (status === 'active') {
       elapsedRef.current = setInterval(() => setElapsed(e => e + 1), 1000);
@@ -79,12 +123,12 @@ export default function ChatCallOverlay({
     return () => { if (elapsedRef.current) clearInterval(elapsedRef.current); };
   }, [status]);
 
-  // Focus input when call becomes active
+  // ─── Focus input when call becomes active ────────────────────────────────
   useEffect(() => {
     if (status === 'active') setTimeout(() => inputRef.current?.focus(), 100);
   }, [status]);
 
-  // Push typing state on input change
+  // ─── Push typing state ────────────────────────────────────────────────────
   function handleType(val: string) {
     setMyText(val);
     if (typingRef.current) clearTimeout(typingRef.current);
@@ -96,15 +140,7 @@ export default function ChatCallOverlay({
           body: JSON.stringify({ action: 'typing', text: val }),
         });
       } catch (_) {}
-    }, 50); // debounce slightly so we're not hammering on every keystroke
-  }
-
-  async function initiateCall() {
-    await fetch(`/api/channels/${channelId}/chat-call`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'initiate' }),
-    });
-    await poll();
+    }, 80);
   }
 
   async function acceptCall() {
@@ -118,11 +154,18 @@ export default function ChatCallOverlay({
 
   async function rejectOrEnd() {
     const action = status === 'ringing' ? 'reject' : 'end';
+    // Stop polling before the request so we don't race with the ended state handler
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
     await fetch(`/api/channels/${channelId}/chat-call`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action }),
     });
-    await poll();
+    // Show the ended state briefly, then close
+    setStatus('ended');
+    if (!closedRef.current) {
+      closedRef.current = true;
+      setTimeout(() => onCloseRef.current(), 1500);
+    }
   }
 
   function fmtElapsed(s: number) {
@@ -131,28 +174,11 @@ export default function ChatCallOverlay({
     return `${m}:${sec.toString().padStart(2, '0')}`;
   }
 
-  // Auto-start call initiation when component mounts — only if not already a session
-  const didInitRef = useRef(false);
-  useEffect(() => {
-    if (didInitRef.current) return;
-    didInitRef.current = true;
-    // Check if there's already an active/ringing session (callee flow)
-    fetch(`/api/channels/${channelId}/chat-call`)
-      .then(r => r.json())
-      .then(data => {
-        const s: CallSession | null = data.session;
-        // If session exists and we're the callee (already accepted), just poll — don't re-initiate
-        if (s && (s.status === 'ringing' || s.status === 'active')) {
-          poll();
-        } else {
-          initiateCall();
-        }
-      })
-      .catch(() => initiateCall());
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   if (typeof window === 'undefined') return <></>;
+
+  // status === null means we haven't heard back from the server yet — render nothing
+  // to avoid the "XXX is calling" flash before we know the real state
+  if (status === null) return createPortal(<></>, document.body) as JSX.Element;
 
   const overlay = (
     <div style={{
@@ -188,7 +214,7 @@ export default function ChatCallOverlay({
         }
       `}</style>
 
-      {/* RINGING STATE */}
+      {/* RINGING / WAITING STATE */}
       {(status === 'ringing' || status === 'idle') && (
         <div style={{
           animation: 'ccFadeIn 0.25s ease forwards',
@@ -236,7 +262,7 @@ export default function ChatCallOverlay({
                 </svg>
               </button>
             )}
-            <button onClick={async () => { await rejectOrEnd(); onClose(); }} style={{
+            <button onClick={async () => { await rejectOrEnd(); }} style={{
               width: 56, height: 56, borderRadius: '50%', border: 'none',
               background: '#ed4245', color: '#fff', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -288,7 +314,7 @@ export default function ChatCallOverlay({
             </span>
             <div style={{ flex: 1 }} />
             <button
-              onClick={async () => { await rejectOrEnd(); onClose(); }}
+              onClick={async () => { await rejectOrEnd(); }}
               style={{
                 display: 'flex', alignItems: 'center', gap: 6,
                 padding: '5px 14px', borderRadius: 8, border: 'none',
@@ -381,7 +407,7 @@ export default function ChatCallOverlay({
               <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
             <span style={{ fontSize: 11, color: 'var(--text-3)', letterSpacing: '0.06em' }}>
-              Everything you type is live — updated every 0.5s
+              Everything you type is live — updated every 0.6s
             </span>
           </div>
         </div>

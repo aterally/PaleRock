@@ -49,14 +49,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // GET — poll for call state + live typing
   if (req.method === 'GET') {
-    const session = calls.get(channelId);
+    let session = calls.get(channelId);
     // Clean up stale ended calls (> 10s) and stale ringing (> 30s)
     if (session) {
       const age = Date.now() - session.startedAt;
-      if (session.status === 'ended' && age > 10000) calls.delete(channelId);
-      if (session.status === 'ringing' && age > 30000) calls.delete(channelId);
+      if (session.status === 'ended' && age > 10000) { calls.delete(channelId); session = undefined; }
+      else if (session.status === 'ringing' && age > 30000) { calls.delete(channelId); session = undefined; }
     }
-    return res.status(200).json({ session: calls.get(channelId) || null });
+    return res.status(200).json({ session: session || null });
   }
 
   // POST — actions: initiate | accept | reject | end | typing
@@ -64,10 +64,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { action, text } = req.body || {};
 
     if (action === 'initiate') {
-      // Can't call if already a session
       const existing = calls.get(channelId);
+      // If a live session already exists, return it as-is so the caller's overlay
+      // can detect it (handles the "both parties press call" race)
       if (existing && existing.status !== 'ended') {
-        return res.status(409).json({ error: 'Call already active' });
+        return res.status(200).json({ ok: true, existing: true });
+
       }
       calls.set(channelId, {
         callerId: meId.toString(),

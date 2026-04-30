@@ -37,6 +37,7 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
   const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
   // Chat call state
   const [callOpen, setCallOpen] = useState(false);
+  const [callAlreadyAccepted, setCallAlreadyAccepted] = useState(false);
   const [incomingCall, setIncomingCall] = useState<{ callerUsername: string; callerAvatar?: string | null } | null>(null);
   const callPollRef = useRef<NodeJS.Timeout | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -277,6 +278,7 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
   }, [channelId, currentUser.id, callOpen]);
 
   async function startCall() {
+    setCallAlreadyAccepted(false); // caller flow — overlay will initiate
     setCallOpen(true);
     setIncomingCall(null);
   }
@@ -287,6 +289,7 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
       body: JSON.stringify({ action: 'accept' }),
     });
     setIncomingCall(null);
+    setCallAlreadyAccepted(true); // callee flow — session already accepted, skip re-initiating
     setCallOpen(true);
   }
 
@@ -638,7 +641,8 @@ export default function ChatPane({ channelId, channel, currentUser }: ChatPanePr
           otherUserId={otherUser.id}
           otherUsername={otherUser.username}
           otherAvatar={otherUser.avatar}
-          onClose={() => setCallOpen(false)}
+          alreadyAccepted={callAlreadyAccepted}
+          onClose={() => { setCallOpen(false); setCallAlreadyAccepted(false); }}
         />
       )}
     </div>
